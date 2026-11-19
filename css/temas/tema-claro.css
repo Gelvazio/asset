@@ -1,0 +1,6 @@
+/* Tema claro. Ativado com <html data-tema="claro">. */
+:root[data-tema="claro"] {
+  --cor-fundo: #ffffff;
+  --cor-texto: #1a1a1a;
+  --cor-destaque: #2563eb;
+}

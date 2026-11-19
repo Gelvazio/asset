@@ -1,0 +1,6 @@
+/* Tema escuro. Ativado com <html data-tema="escuro">. */
+:root[data-tema="escuro"] {
+  --cor-fundo: #0f172a;
+  --cor-texto: #e2e8f0;
+  --cor-destaque: #60a5fa;
+}
