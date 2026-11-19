@@ -1,0 +1,15 @@
+/* Trava de horário da atividade (TRAVA-HORARIO-ATIVIDADE-16-11-2026.3) */
+.trava-horario__faixa {
+    position: sticky; top: 0; z-index: 900; margin: 0; padding: 10px 16px;
+    background: #1f3864; color: #fff; font-weight: 700; text-align: center;
+}
+.trava-horario__cobertura {
+    position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center;
+    justify-content: center; padding: 24px; background: rgba(15, 23, 42, 0.94); color: #fff;
+    font-size: 1.4rem; font-weight: 700; text-align: center; line-height: 1.5;
+}
+.trava-horario-professor {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0;
+    padding: 8px 10px; border: 1px dashed #1f3864; border-radius: 8px;
+}
+.trava-horario-professor__aviso { flex-basis: 100%; font-size: 0.9rem; }

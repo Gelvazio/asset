@@ -1,0 +1,11 @@
+/* Barra "Apenas Aulas Liberadas" do índice de atividades (#546): a chave reusa o visual
+   interruptor-aula (indice-atividades-bloquear.css), aqui só o encaixe na barra e o oculto. */
+.apenas-liberadas {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 8px 20px;
+}
+.apenas-liberadas .interruptor-aula { flex: 0 0 auto; padding: 4px 10px; }
+.apenas-liberadas__rotulo { font-size: 13px; font-weight: 700; }
+
+/* Card de aula escondido pela chave (não mexe no hidden nem nas classes de bloqueio). */
+.aula--oculta-filtro-liberadas { display: none !important; }

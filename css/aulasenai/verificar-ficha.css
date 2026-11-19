@@ -1,0 +1,142 @@
+/* Página pública de verificação da Ficha do Aluno (tema SENAI, parecido com o PDF da ficha). */
+:root {
+    --cor-azul: #164194;
+    --cor-texto: #1e293b;
+    --cor-rotulo: #64748b;
+    --cor-fundo: #eef2f9;
+    --cor-cartao: #ffffff;
+    --cor-linha: #d6deeb;
+    --cor-zebra: #f6f8fc;
+    --cor-sucesso: #15803d;
+    --cor-sucesso-fundo: #dcfce7;
+    --cor-erro: #b91c1c;
+    --cor-erro-fundo: #fee2e2;
+    --raio-cartao: 14px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: var(--cor-texto);
+    background: var(--cor-fundo);
+}
+
+.verificar-ficha {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+}
+
+.verificar-ficha__cabecalho { text-align: center; margin-bottom: 1.5rem; }
+
+.verificar-ficha__cabecalho h1 { margin: 0.5rem 0; color: var(--cor-azul); font-size: 1.6rem; }
+
+.verificar-ficha__cabecalho p { margin: 0; color: var(--cor-rotulo); }
+
+.verificar-ficha__logo {
+    display: inline-block;
+    padding: 0.3rem 1.2rem;
+    color: #fff;
+    background: var(--cor-azul);
+    border-radius: 6px;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+}
+
+.verificar-ficha__cartao {
+    margin-bottom: 1rem;
+    padding: 1.25rem;
+    background: var(--cor-cartao);
+    border-radius: var(--raio-cartao);
+    box-shadow: 0 2px 8px rgba(22, 65, 148, 0.12);
+}
+
+.verificar-ficha__cartao[hidden] { display: none; }
+
+.verificar-ficha__campo { display: block; margin-bottom: 0.75rem; }
+
+.verificar-ficha__campo span { display: block; color: var(--cor-rotulo); font-size: 0.85rem; }
+
+.verificar-ficha__campo input {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--cor-linha);
+    border-radius: 8px;
+    font-size: 1.1rem;
+    letter-spacing: 0.05em;
+}
+
+.verificar-ficha__botao {
+    padding: 0.6rem 1.6rem;
+    color: #fff;
+    background: var(--cor-azul);
+    border: 0;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.verificar-ficha__botao:hover { filter: brightness(1.15); }
+
+.verificar-ficha__selo {
+    margin: 0 0 1rem;
+    padding: 0.9rem 1rem;
+    border-radius: 10px;
+    font-size: 1.3rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.verificar-ficha__selo--ok { color: var(--cor-sucesso); background: var(--cor-sucesso-fundo); }
+
+.verificar-ficha__selo--erro { color: var(--cor-erro); background: var(--cor-erro-fundo); }
+
+.verificar-ficha__selo small { display: block; font-size: 0.85rem; font-weight: 600; }
+
+.verificar-ficha__estudante { margin: 0 0 0.75rem; color: var(--cor-azul); font-size: 1.5rem; }
+
+.verificar-ficha__dados {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem 1.5rem;
+    margin: 0 0 1rem;
+}
+
+.verificar-ficha__dados dt { color: var(--cor-rotulo); font-size: 0.78rem; }
+
+.verificar-ficha__dados dd { margin: 0.1rem 0 0; font-weight: 600; overflow-wrap: anywhere; }
+
+.verificar-ficha__medias { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1rem 0; }
+
+.verificar-ficha__media {
+    flex: 1 1 150px;
+    padding: 0.7rem;
+    text-align: center;
+    background: var(--cor-zebra);
+    border-radius: 10px;
+}
+
+.verificar-ficha__media strong { display: block; color: var(--cor-azul); font-size: 1.5rem; }
+
+.verificar-ficha__media span { color: var(--cor-rotulo); font-size: 0.8rem; }
+
+.verificar-ficha__tabela-area { overflow-x: auto; }
+
+.verificar-ficha__tabela { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+
+.verificar-ficha__tabela th {
+    padding: 0.5rem;
+    color: var(--cor-azul);
+    text-align: left;
+    border-bottom: 1px solid var(--cor-linha);
+}
+
+.verificar-ficha__tabela td { padding: 0.5rem; }
+
+.verificar-ficha__tabela tbody tr:nth-child(even) { background: var(--cor-zebra); }
+
+.verificar-ficha__hash { color: var(--cor-rotulo); font-family: monospace; overflow-wrap: anywhere; }
+
+.verificar-ficha__orientacao { color: var(--cor-rotulo); font-size: 0.9rem; }

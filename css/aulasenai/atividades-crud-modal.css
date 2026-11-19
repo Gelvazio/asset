@@ -1,0 +1,201 @@
+/* Modal "CADASTRAR ATIVIDADES" do ATIVIDADES/index.html (assets/js/atividades-crud-modal.js). */
+:root {
+    --crud-azul: #004384;
+    /* Mesma altura do botão da atividade e do ON/OFF (indice-atividades.css, #274). */
+    --crud-espaco-acoes: 8px;
+    --crud-espaco-id: 10px;
+    --crud-fundo: #ffffff;
+    --crud-borda: #cbd5e0;
+    --crud-texto: #1a202c;
+    --crud-suave: #4a5568;
+    --crud-perigo: #b42318;
+    --crud-ok: #1b7f3b;
+    /* "−" em vermelho vivo, com mais destaque (#274). */
+    --crud-desvincular-fundo: #e5132a;
+    --crud-desvincular-borda: #a50d1d;
+    --crud-desvincular-texto: #ffffff;
+    --crud-desvincular-brilho: rgba(229, 19, 42, 0.35);
+    --crud-desvincular-fonte: 22px;
+}
+
+/* Botão ✏️ ao lado de cada atividade do card (só professor): abre a edição no banco.
+   Linha da atividade: link → ON/OFF → ✏️, sempre juntos (o link encolhe para caber). */
+.crud-editar-atividade {
+    flex: 0 0 var(--crud-tamanho-editar);
+    width: var(--crud-tamanho-editar);
+    height: var(--crud-tamanho-editar);
+    padding: 0;
+    align-self: center;
+    box-sizing: border-box;
+    background: #fff7e6;
+    border: 1px solid #f0c36d;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.acoes .btn.principal:has(+ .crud-editar-atividade) {
+    flex: 1 1 calc(100% - var(--crud-tamanho-editar) - var(--crud-espaco-acoes));
+    min-width: 0;
+}
+
+.acoes .btn.principal:has(+ .interruptor-atividade + .crud-editar-atividade) {
+    flex: 1 1 calc(100% - var(--largura-onoff-atividade) - var(--crud-tamanho-editar) -
+        2 * var(--crud-espaco-acoes));
+    min-width: 0;
+    font-size: 12px;
+}
+
+/* Botão "−" logo depois do ✏️ (só em atividade com aula): remove o vínculo com a aula.
+   Linha da atividade: link → ON/OFF → ✏️ → −. */
+.crud-desvincular-atividade {
+    flex: 0 0 var(--crud-tamanho-editar);
+    width: var(--crud-tamanho-editar);
+    height: var(--crud-tamanho-editar);
+    padding: 0;
+    align-self: center;
+    box-sizing: border-box;
+    background: var(--crud-desvincular-fundo);
+    border: 2px solid var(--crud-desvincular-borda);
+    border-radius: 50%;
+    color: var(--crud-desvincular-texto);
+    font-size: var(--crud-desvincular-fonte);
+    font-weight: 900;
+    line-height: 1;
+    box-shadow: 0 0 0 3px var(--crud-desvincular-brilho);
+    cursor: pointer;
+}
+
+.crud-desvincular-atividade:hover { filter: brightness(1.1); }
+
+.acoes .btn.principal:has(+ .crud-editar-atividade + .crud-desvincular-atividade) {
+    flex: 1 1 calc(100% - 2 * var(--crud-tamanho-editar) - 2 * var(--crud-espaco-acoes));
+    min-width: 0;
+}
+
+.acoes .btn.principal:has(+ .interruptor-atividade + .crud-editar-atividade +
+    .crud-desvincular-atividade) {
+    flex: 1 1 calc(100% - var(--largura-onoff-atividade) - 2 * var(--crud-tamanho-editar) -
+        3 * var(--crud-espaco-acoes));
+    min-width: 0;
+    font-size: 12px;
+}
+
+.crud-fundo {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    padding: 16px;
+}
+.crud-fundo[hidden] { display: none; }
+
+.crud-caixa {
+    background: var(--crud-fundo);
+    color: var(--crud-texto);
+    width: min(760px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    border-radius: 12px;
+    padding: 20px;
+}
+/* Sem barra horizontal: campos e textos longos (ex.: nome do link) cabem na largura do modal. */
+.crud-caixa *, .crud-caixa *::before, .crud-caixa *::after { box-sizing: border-box; }
+.crud-cabecalho { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.crud-caixa h2 { color: var(--crud-azul); font-size: 20px; }
+.crud-caixa h3 { margin: 18px 0 8px; font-size: 16px; }
+
+.crud-lista { margin-top: 12px; display: grid; gap: 8px; }
+
+/* Modal aberto pelo ✏️ de uma atividade: só o formulário dela (sem lista nem "Nova / limpar"). */
+.crud-caixa--unica .crud-lista,
+.crud-caixa--unica .crud-subtitulo,
+.crud-caixa--unica [data-acao="limpar"] {
+    display: none;
+}
+.crud-linha {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--crud-borda);
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+.crud-linha__texto { flex: 1; display: grid; }
+.crud-linha__texto small, .crud-vazio { color: var(--crud-suave); }
+
+.crud-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+.crud-campo { display: grid; gap: 4px; font-size: 14px; min-width: 0; }
+.crud-campo__rotulo { font-weight: 600; }
+.crud-campo input[type="text"], .crud-campo input[type="date"],
+.crud-campo input[type="number"], .crud-campo select {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: 8px;
+    border: 1px solid var(--crud-borda);
+    border-radius: 6px;
+    font: inherit;
+    text-overflow: ellipsis;
+}
+.crud-campo input[type="checkbox"] { width: 20px; height: 20px; }
+.crud-form__acoes { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+
+.crud-btn {
+    border: 1px solid var(--crud-borda);
+    background: #f4f6fb;
+    color: var(--crud-texto);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+.crud-btn--principal { background: var(--crud-azul); color: #fff; border-color: var(--crud-azul); }
+.crud-btn--perigo { color: var(--crud-perigo); border-color: var(--crud-perigo); }
+
+.crud-mensagem { margin-top: 10px; min-height: 20px; color: var(--crud-ok); font-weight: 600; }
+.crud-mensagem--erro { color: var(--crud-perigo); }
+
+/* Celular: modal em tela cheia; campos de 16 px (sem zoom automático). */
+@media (max-width: 600px) {
+    .crud-fundo { padding: 0; align-items: stretch; }
+    .crud-caixa { max-height: 100vh; border-radius: 0; padding: 14px 12px; }
+    .crud-form { grid-template-columns: minmax(0, 1fr); }
+    .crud-linha { flex-wrap: wrap; }
+    .crud-campo input[type="text"], .crud-campo input[type="date"],
+    .crud-campo input[type="number"], .crud-campo select { font-size: 16px; padding: 10px; }
+    .crud-btn { padding: 9px 14px; }
+}
+
+/* ID da atividade cadastrada na frente do botão dela, no card do índice (só professor). */
+.crud-id-atividade {
+    display: inline-block;
+    margin-right: 8px;
+    padding: 1px 7px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--crud-texto);
+    font-size: 11px;
+    font-weight: 800;
+    vertical-align: middle;
+}
+
+/* Botão com a etiqueta de ID (só professor): ID colado à esquerda e nome/descrição à direita
+   (space-between). O texto solto do link vira item flex anônimo e quebra a linha sem estourar. */
+a.btn.principal:has(> .crud-id-atividade) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--crud-espaco-id);
+    text-align: right;
+}
+
+a.btn.principal:has(> .crud-id-atividade) > .crud-id-atividade {
+    flex: 0 0 auto;
+    margin-right: 0;
+}

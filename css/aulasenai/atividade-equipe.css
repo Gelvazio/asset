@@ -1,0 +1,133 @@
+/*
+ * Trabalho em equipe (atividade que agrupa várias aulas).
+ * Complementa o atividade.css: tabelas, listas, modelos de texto e checklist.
+ * Genérico: nada de matéria, curso ou docente fixo aqui.
+ */
+:root {
+    --equipe-borda: #e2e8f0;
+    --equipe-cabecalho: #edf2f7;
+    --equipe-modelo-fundo: #fffdf5;
+    --equipe-modelo-borda: #d69e2e;
+    --equipe-alerta-fundo: #fff5f5;
+    --equipe-alerta-borda: #e53e3e;
+    --equipe-ok: #2f855a;
+}
+
+.tabela-equipe {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 8px 0 4px;
+    background: white;
+}
+.tabela-equipe th,
+.tabela-equipe td {
+    border-bottom: 1px solid var(--equipe-borda);
+    padding: 7px 9px;
+    text-align: left;
+    vertical-align: top;
+}
+.tabela-equipe th {
+    background: var(--equipe-cabecalho);
+    color: var(--primary);
+    font-weight: 700;
+}
+.tabela-equipe__numero { text-align: right; white-space: nowrap; }
+.tabela-equipe-rolagem { overflow-x: auto; }
+
+.lista-equipe { margin: 6px 0 4px 20px; font-size: 14px; }
+.lista-equipe li { margin-bottom: 4px; }
+.lista-equipe--checklist { list-style: none; margin-left: 0; }
+.lista-equipe--checklist li::before { content: '☐ '; color: var(--equipe-ok); font-weight: 700; }
+
+.modelo-texto {
+    background: var(--equipe-modelo-fundo);
+    border: 1px dashed var(--equipe-modelo-borda);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin: 8px 0;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-line;
+}
+
+.alerta-equipe {
+    background: var(--equipe-alerta-fundo);
+    border-left: 4px solid var(--equipe-alerta-borda);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+/* Papel responsável, ao lado do título de um texto do trabalho em equipe. */
+.papel-texto {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 2px 10px;
+    border: 1px solid var(--equipe-modelo-borda);
+    border-radius: 12px;
+    background: var(--equipe-modelo-fundo);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.aula-card--secao { border-left-color: var(--secondary); }
+.aula-card--modelo { border-left-color: var(--equipe-modelo-borda); }
+.aula-card--avaliacao { border-left-color: var(--equipe-ok); }
+
+.regra-ouro {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    color: white;
+    border-radius: 8px;
+    padding: 18px 20px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+@media print {
+    body { background: white; padding: 0; }
+    .container { box-shadow: none; }
+    .aula-card { break-inside: avoid; }
+}
+
+/* Versão resumida (cabe em até 2 folhas A4 na impressão). */
+.pagina-simples .content-section { padding: 24px; }
+.pagina-simples .aula-card { padding: 14px 16px; margin-bottom: 12px; }
+.pagina-simples .lista-equipe { font-size: 13px; }
+.pagina-simples .lista-equipe li { margin-bottom: 2px; }
+.pagina-simples .tabela-equipe { font-size: 12px; }
+.pagina-simples .tabela-equipe th,
+.pagina-simples .tabela-equipe td { padding: 4px 7px; }
+.colunas-simples { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 700px) { .colunas-simples { grid-template-columns: 1fr; } }
+
+/* Celular: tabelas roláveis na horizontal (mesmo fora de .tabela-equipe-rolagem),
+   listas com menos recuo e textos-modelo sem estourar a largura. */
+@media (max-width: 600px) {
+    .tabela-equipe { display: block; overflow-x: auto; font-size: 14px; }
+    .tabela-equipe th,
+    .tabela-equipe td { padding: 8px 7px; min-width: 90px; }
+    .lista-equipe { margin-left: 18px; font-size: 16px; line-height: 1.5; }
+    .lista-equipe .lista-equipe { margin-left: 14px; font-size: 15px; }
+    .lista-equipe li { margin-bottom: 6px; overflow-wrap: anywhere; }
+    .modelo-texto { font-size: 14px; padding: 10px; overflow-wrap: anywhere; }
+    .alerta-equipe { font-size: 15px; padding: 10px 12px; }
+    .regra-ouro { font-size: 15px; padding: 14px 12px; }
+    code { overflow-wrap: anywhere; }
+}
+
+@media print {
+    @page { size: A4; margin: 12mm; }
+    .pagina-simples header { padding: 12px; }
+    .pagina-simples header h1 { font-size: 20px; }
+    .pagina-simples .content-section { padding: 0; }
+    .pagina-simples .aula-card { padding: 8px 10px; margin-bottom: 8px; }
+    .pagina-simples .voltar,
+    .pagina-simples #header-usuario { display: none; }
+}

@@ -1,0 +1,200 @@
+/*
+ * temas.css — 11 temas trocáveis por atributo: <html data-tema="…">
+ *   escuro · roxo · tech · youtube  (originais de index.html, sem alteração)
+ *   futurista (Visual Futurista / Tema 01) · profissional (Visual Profissional / Tema 02)
+ *   rosa (tudo em rosa) · lilas (lilás com roxo e laranja) · violeta (roxo intenso) · laranja
+ *   senai (claro, com as cores originais do site SENAI)
+ *
+ * Contrato: todo tema define as MESMAS variáveis abaixo. Componentes usam só var(--…),
+ * nunca cor literal; assim trocar data-tema troca o visual inteiro.
+ *   Fundos ....... --bg0 --bg1 --bg2 --body-bg --surface --surface2 --surface3 --opt-bg
+ *   Painéis ...... --panel --panel2 --line --side-bg --side-solid --topbar-bg
+ *   Texto ........ --text --muted --dim
+ *   Acento ....... --cyan (= cor de destaque, nome histórico) --acc --acc-rgb --on-acc --acc-hover
+ *   Botão ........ --btn-bg --btn-bg-h --on-btn
+ *   Dados ........ --data --ref --chart-bg --code-bg --code-fg
+ *   Marca ........ --logo-bg --logo-fg --fab-bg --fab-fg
+ *   Fontes ....... --fonte-titulo --fonte-corpo --fonte-mono
+ *
+ * Em futurista e profissional, as variáveis sem equivalente direto nos CSS de origem
+ * estão marcadas com  derivado  (calculadas a partir das cores originais).
+ */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@500;600;700&display=swap");
+
+/* ---------- Base comum ---------- */
+:root {
+  --acc: var(--cyan);
+  --fonte-titulo: var(--fonte-corpo);
+  --fonte-corpo: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fonte-mono: "JetBrains Mono", Consolas, monospace;
+}
+body {
+  background: var(--body-bg);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--fonte-corpo);
+}
+
+/* ===== escuro (#a5b4fc) — grafite com brilho azul ===== */
+:root[data-tema="escuro"]{--bg0:#050608;--bg1:#08090d;--bg2:#0d0f15;--panel:rgba(255,255,255,.04);--panel2:rgba(255,255,255,.08);--line:rgba(255,255,255,.09);
+  --text:#eef0f6;--muted:#9aa0ae;--dim:#666b78;--cyan:#a5b4fc;--acc-rgb:165,180,252;--on-acc:#0b1026;--acc-hover:#c7d2fe;
+  --btn-bg:linear-gradient(180deg,#b4c0fd,#8b9cf7);--btn-bg-h:linear-gradient(180deg,#c7d2fe,#a5b4fc);--on-btn:#0b1026;
+  --data:#a5b4fc;--ref:#6b7080;--chart-bg:#0c0e13;
+  --body-bg:radial-gradient(1150px 780px at 54% 44%,rgba(56,78,210,.38) 0%,rgba(56,78,210,.12) 45%,transparent 70%),radial-gradient(620px 420px at 88% 95%,rgba(99,102,241,.14) 0%,transparent 60%),linear-gradient(180deg,#050608,#08090d 60%,#0a0b10);
+  --side-bg:rgba(8,9,13,.6);--side-solid:#0a0b10;--topbar-bg:rgba(7,8,11,.92);--surface:#12141a;--surface2:#171a21;--surface3:#101217;--opt-bg:#12141a;--code-bg:#040507;--code-fg:#dbe2ff;
+  --logo-bg:linear-gradient(135deg,#f3f4f6,#9ca3af);--logo-fg:#0b0c10;--fab-bg:linear-gradient(135deg,#a5b4fc,#818cf8);--fab-fg:#0b1026}
+
+/* ===== roxo (#a78bfa) — vidro escuro com brilho violeta ===== */
+:root[data-tema="roxo"]{--bg0:#08070c;--bg1:#0e0c14;--bg2:#15121d;--panel:rgba(255,255,255,.04);--panel2:rgba(255,255,255,.075);--line:rgba(167,139,250,.14);
+  --text:#f1eefc;--muted:#a39fb8;--dim:#6f6a85;--cyan:#a78bfa;--acc-rgb:139,92,246;--on-acc:#1a0b3d;--acc-hover:#c4b5fd;
+  --btn-bg:linear-gradient(135deg,#7c3aed,#8b5cf6);--btn-bg-h:linear-gradient(135deg,#8b5cf6,#a78bfa);--on-btn:#ffffff;
+  --data:#b69cfb;--ref:#6f6a80;--chart-bg:#110e17;
+  --body-bg:radial-gradient(900px 620px at 88% 92%,rgba(124,58,237,.20) 0%,transparent 60%),radial-gradient(760px 520px at 8% -6%,rgba(139,92,246,.13) 0%,transparent 60%),linear-gradient(160deg,#08070c,#0e0c14 55%,#120f1a);
+  --side-bg:rgba(10,8,15,.55);--side-solid:#0c0a12;--topbar-bg:rgba(9,8,13,.9);--surface:#15121d;--surface2:#1b1726;--surface3:#13101a;--opt-bg:#15121d;--code-bg:#07060b;--code-fg:#ddd6fe;
+  --logo-bg:linear-gradient(135deg,#8b5cf6,#6d28d9);--logo-fg:#ffffff;--fab-bg:linear-gradient(135deg,#8b5cf6,#6d28d9);--fab-fg:#ffffff}
+
+/* ===== tech (#60a5fa) — azul-marinho com brilho laranja no canto ===== */
+:root[data-tema="tech"]{--bg0:#03050b;--bg1:#060a14;--bg2:#0a1020;--panel:rgba(255,255,255,.035);--panel2:rgba(255,255,255,.07);--line:rgba(96,165,250,.14);
+  --text:#e6edf7;--muted:#8b97ad;--dim:#5b6679;--cyan:#60a5fa;--acc-rgb:96,165,250;--on-acc:#04122b;--acc-hover:#93c5fd;
+  --btn-bg:linear-gradient(135deg,#2563eb,#3b82f6);--btn-bg-h:linear-gradient(135deg,#3b82f6,#60a5fa);--on-btn:#ffffff;
+  --data:#60a5fa;--ref:#6b7488;--chart-bg:#080d18;
+  --body-bg:radial-gradient(760px 620px at 106% 78%,rgba(234,88,12,.22) 0%,transparent 60%),radial-gradient(820px 560px at 100% -8%,rgba(37,99,235,.24) 0%,transparent 62%),radial-gradient(700px 520px at -6% 104%,rgba(37,99,235,.10) 0%,transparent 60%),linear-gradient(170deg,#03050b,#060a14 60%,#070c18);
+  --side-bg:rgba(4,7,14,.6);--side-solid:#050810;--topbar-bg:rgba(4,7,14,.92);--surface:#0b1120;--surface2:#0f1629;--surface3:#0a0f1c;--opt-bg:#0b1120;--code-bg:#02040a;--code-fg:#bfdbfe;
+  --logo-bg:linear-gradient(135deg,#3b82f6,#1d4ed8);--logo-fg:#ffffff;--fab-bg:linear-gradient(135deg,#3b82f6,#8b5cf6);--fab-fg:#ffffff}
+
+/* ===== youtube (#fb923c, botão #e62117) — vermelho e preto com grade ===== */
+:root[data-tema="youtube"]{--bg0:#141313;--bg1:#171414;--bg2:#1e1818;--panel:rgba(0,0,0,.24);--panel2:rgba(255,255,255,.07);--line:rgba(249,115,22,.34);
+  --text:#ffffff;--muted:#c9c4c4;--dim:#8f8888;--cyan:#fb923c;--acc-rgb:249,115,22;--on-acc:#1f0d00;--acc-hover:#fdba74;
+  --btn-bg:#e62117;--btn-bg-h:#ff3b30;--on-btn:#ffffff;
+  --data:#f5f5f5;--ref:#8a8484;--grid:rgba(255,255,255,.09);--chart-bg:#1a1515;
+  --body-bg:radial-gradient(135% 115% at 0% 0%,transparent 0%,transparent 22%,rgba(22,19,19,.82) 55%,#151313 82%),linear-gradient(rgba(255,255,255,.055) 3px,transparent 3px) -3px -3px/160px 160px,linear-gradient(90deg,rgba(255,255,255,.055) 3px,transparent 3px) -3px -3px/160px 160px,linear-gradient(150deg,#5e1515 0%,#3b1010 32%,#1d1616 66%,#151313 100%);
+  --side-bg:rgba(12,8,8,.45);--side-solid:#140f0f;--topbar-bg:rgba(20,15,15,.94);--surface:#1d1818;--surface2:#241d1d;--surface3:#1a1616;--opt-bg:#1d1818;--code-bg:#0c0a0a;--code-fg:#fde7d6;
+  --logo-bg:#e62117;--logo-fg:#ffffff;--fab-bg:#e62117;--fab-fg:#ffffff;
+  --fonte-titulo:"Oswald","Space Grotesk",system-ui,sans-serif}
+
+/* ===== futurista (#00f0ff) — cyberpunk: neon ciano/magenta/violeta sobre quase preto ===== */
+:root[data-tema="futurista"]{--bg0:#05030d;--bg1:#09051a /* derivado: cartão 72% sobre bg0 */;--bg2:#0e0822;
+  --panel:rgba(14,8,34,.72);--panel2:rgba(0,240,255,.08);--line:rgba(0,240,255,.45);
+  --text:#e6f7ff;--muted:#9fb4c8;--dim:#6f8295 /* derivado */;--cyan:#00f0ff;--acc-rgb:0,240,255;--on-acc:#05030d;--acc-hover:#7ff7ff /* derivado */;
+  --btn-bg:rgba(0,240,255,.08);--btn-bg-h:rgba(0,240,255,.12);--on-btn:#00f0ff;
+  --data:#00f0ff;--ref:#9fb4c8;--chart-bg:#05030d;
+  --body-bg:radial-gradient(circle at 15% 10%,rgba(123,44,255,.28),transparent 45%),radial-gradient(circle at 85% 90%,rgba(255,43,214,.18),transparent 50%),#05030d;
+  --side-bg:rgba(14,8,34,.72);--side-solid:#0e0822;--topbar-bg:rgba(5,3,13,.92) /* derivado */;--surface:#0e0822;--surface2:#140c30 /* derivado */;--surface3:#09051a;--opt-bg:#0e0822;--code-bg:#020106 /* derivado: preto 50% sobre bg0 */;--code-fg:#e6f7ff;
+  --logo-bg:linear-gradient(90deg,#7b2cff,#ff2bd6,#00f0ff);--logo-fg:#05030d;--fab-bg:linear-gradient(90deg,#7b2cff,#ff2bd6,#00f0ff);--fab-fg:#05030d;
+  --magenta:#ff2bd6;--violeta:#7b2cff;--sucesso:#3dffa8;--alerta:#ff6b6b}
+
+/* ===== profissional (#ff4fa3 + #34e0d7 + #ffb84d) — violeta profundo, três acentos ===== */
+:root[data-tema="profissional"]{--bg0:#0d0b1f;--bg1:#14112e;--bg2:#1a1640;
+  --panel:rgba(20,17,46,.65);--panel2:rgba(255,255,255,.08);--line:rgba(180,110,255,.15);
+  --text:#e6e3ff;--muted:#a09bc7;--dim:#7e7aa3;--cyan:#ff4fa3;--acc-rgb:255,79,163;--on-acc:#0d0b1f;--acc-hover:#ff4fa3;
+  --btn-bg:linear-gradient(90deg,#ff4fa3,#ffb84d);--btn-bg-h:linear-gradient(90deg,#ff4fa3,#ffb84d);--on-btn:#ffffff;
+  --data:#34e0d7;--ref:#7e7aa3;--chart-bg:#14112e;
+  --body-bg:radial-gradient(ellipse at top left,#1c1240 0%,#0d0b1f 55%) fixed,radial-gradient(ellipse at bottom right,#261540 0%,transparent 60%) fixed;
+  --side-bg:rgba(14,11,30,.85);--side-solid:#0e0b1e;--topbar-bg:linear-gradient(180deg,rgba(10,8,24,.97),rgba(17,9,42,.95));--surface:#1a1640;--surface2:#221c52;--surface3:#14112e;--opt-bg:#1a1640;--code-bg:#1e1e1e;--code-fg:#d4d4d4;
+  --logo-bg:linear-gradient(90deg,#ff4fa3,#ffb84d,#34e0d7);--logo-fg:#0d0b1f;--fab-bg:linear-gradient(90deg,#ff4fa3,#ffb84d,#34e0d7);--fab-fg:#0d0b1f;
+  --h1:#ff4fa3;--h2:#34e0d7;--h3:#ffb84d;--link:#5ab8ff;--link-hov:#a3d6ff;--warn-red:#ff5b6e;--warn-green:#5dd45d;
+  --fonte-corpo:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--fonte-mono:"Courier New",monospace}
+
+/* ===== rosa (#f472b6) — tudo em rosa sobre fundo vinho escuro ===== */
+:root[data-tema="rosa"]{--bg0:#120509;--bg1:#18070d;--bg2:#220a13;--panel:rgba(244,114,182,.05);--panel2:rgba(244,114,182,.10);--line:rgba(244,114,182,.22);
+  --text:#fff1f7;--muted:#e0a3c2;--dim:#a8738f;--cyan:#f472b6;--acc-rgb:244,114,182;--on-acc:#2a0616;--acc-hover:#fbcfe8;
+  --btn-bg:linear-gradient(135deg,#db2777,#f472b6);--btn-bg-h:linear-gradient(135deg,#ec4899,#f9a8d4);--on-btn:#ffffff;
+  --data:#f9a8d4;--ref:#9c6b84;--chart-bg:#1a0810;
+  --body-bg:radial-gradient(900px 640px at 90% 8%,rgba(236,72,153,.28) 0%,transparent 60%),radial-gradient(700px 520px at 6% 96%,rgba(244,114,182,.16) 0%,transparent 60%),linear-gradient(170deg,#120509,#18070d 60%,#220a13);
+  --side-bg:rgba(18,5,9,.6);--side-solid:#18070d;--topbar-bg:rgba(18,5,9,.92);--surface:#1f0a12;--surface2:#2a0e19;--surface3:#170709;--opt-bg:#1f0a12;--code-bg:#0d0307;--code-fg:#fbcfe8;
+  --logo-bg:linear-gradient(135deg,#f9a8d4,#db2777);--logo-fg:#2a0616;--fab-bg:linear-gradient(135deg,#f472b6,#db2777);--fab-fg:#ffffff}
+
+/* ===== lilas (#d8b4fe) — lilás como destaque, roxo de base e laranja como segundo acento ===== */
+:root[data-tema="lilas"]{--bg0:#09060f;--bg1:#0e0a17;--bg2:#161024;--panel:rgba(216,180,254,.05);--panel2:rgba(216,180,254,.09);--line:rgba(216,180,254,.18);
+  --text:#f7f2ff;--muted:#b9abd6;--dim:#7e7399;--cyan:#d8b4fe;--acc-rgb:216,180,254;--on-acc:#1f0b33;--acc-hover:#f3e8ff;
+  --btn-bg:linear-gradient(90deg,#9333ea,#fb923c);--btn-bg-h:linear-gradient(90deg,#a855f7,#fdba74);--on-btn:#ffffff;
+  --data:#d8b4fe;--ref:#7e7399;--chart-bg:#120d1e;
+  --body-bg:radial-gradient(900px 620px at 94% 100%,rgba(251,146,60,.18) 0%,transparent 60%),radial-gradient(800px 560px at 6% -8%,rgba(168,85,247,.20) 0%,transparent 60%),linear-gradient(165deg,#09060f,#0e0a17 55%,#150f22);
+  --side-bg:rgba(14,10,23,.6);--side-solid:#0e0a17;--topbar-bg:rgba(9,6,15,.92);--surface:#150f22;--surface2:#1c1530;--surface3:#100b1b;--opt-bg:#150f22;--code-bg:#07050c;--code-fg:#f3e8ff;
+  --logo-bg:linear-gradient(90deg,#d8b4fe,#fb923c);--logo-fg:#1f0b33;--fab-bg:linear-gradient(90deg,#a855f7,#fb923c);--fab-fg:#ffffff}
+
+/* ===== violeta (#a855f7) — roxo intenso e saturado, mais forte que o roxo original ===== */
+:root[data-tema="violeta"]{--bg0:#0a0414;--bg1:#110620;--bg2:#1a0c2e;--panel:rgba(168,85,247,.05);--panel2:rgba(168,85,247,.10);--line:rgba(168,85,247,.24);
+  --text:#faf5ff;--muted:#c4b0e3;--dim:#8a74a8;--cyan:#a855f7;--acc-rgb:168,85,247;--on-acc:#ffffff;--acc-hover:#d8b4fe;
+  --btn-bg:linear-gradient(135deg,#6d28d9,#a855f7);--btn-bg-h:linear-gradient(135deg,#7e22ce,#c084fc);--on-btn:#ffffff;
+  --data:#c084fc;--ref:#8a74a8;--chart-bg:#150a24;
+  --body-bg:radial-gradient(950px 660px at 90% 96%,rgba(147,51,234,.30) 0%,transparent 60%),radial-gradient(760px 540px at 4% -6%,rgba(192,132,252,.16) 0%,transparent 60%),linear-gradient(170deg,#0a0414,#110620 55%,#1a0c2e);
+  --side-bg:rgba(10,4,20,.6);--side-solid:#110620;--topbar-bg:rgba(10,4,20,.92);--surface:#170a2a;--surface2:#21103c;--surface3:#0f0519;--opt-bg:#170a2a;--code-bg:#07030d;--code-fg:#e9d5ff;
+  --logo-bg:linear-gradient(135deg,#c084fc,#7e22ce);--logo-fg:#ffffff;--fab-bg:linear-gradient(135deg,#a855f7,#6d28d9);--fab-fg:#ffffff}
+
+/* ===== laranja (#fb923c) — laranja quente sobre fundo carvão ===== */
+:root[data-tema="laranja"]{--bg0:#0f0802;--bg1:#150c04;--bg2:#1f1206;--panel:rgba(251,146,60,.05);--panel2:rgba(251,146,60,.10);--line:rgba(251,146,60,.24);
+  --text:#fff7ed;--muted:#e7c4a0;--dim:#a57f5c;--cyan:#fb923c;--acc-rgb:251,146,60;--on-acc:#2b1200;--acc-hover:#fed7aa;
+  --btn-bg:linear-gradient(135deg,#ea580c,#fb923c);--btn-bg-h:linear-gradient(135deg,#f97316,#fdba74);--on-btn:#ffffff;
+  --data:#fdba74;--ref:#a57f5c;--chart-bg:#1a0f05;
+  --body-bg:radial-gradient(900px 640px at 92% 6%,rgba(249,115,22,.26) 0%,transparent 60%),radial-gradient(700px 520px at 4% 98%,rgba(251,146,60,.14) 0%,transparent 60%),linear-gradient(170deg,#0f0802,#150c04 60%,#1f1206);
+  --side-bg:rgba(15,8,2,.6);--side-solid:#150c04;--topbar-bg:rgba(15,8,2,.92);--surface:#1d1005;--surface2:#271608;--surface3:#130a03;--opt-bg:#1d1005;--code-bg:#0a0501;--code-fg:#ffedd5;
+  --logo-bg:linear-gradient(135deg,#fdba74,#ea580c);--logo-fg:#2b1200;--fab-bg:linear-gradient(135deg,#fb923c,#ea580c);--fab-fg:#ffffff}
+
+/* ===== senai — claro, cores originais do site (#667eea · #764ba2 · #2d3748 · #f7fafc) ===== */
+:root[data-tema="senai"]{--bg0:#f7fafc;--bg1:#ffffff;--bg2:#edf2f7;--panel:rgba(255,255,255,.92);--panel2:rgba(102,126,234,.08);--line:rgba(45,55,72,.14);
+  --text:#2d3748;--muted:#4a5568;--dim:#718096;--cyan:#667eea;--acc-rgb:102,126,234;--on-acc:#ffffff;--acc-hover:#5a67d8;
+  --btn-bg:linear-gradient(135deg,#667eea,#764ba2);--btn-bg-h:linear-gradient(135deg,#5a67d8,#6b3f96);--on-btn:#ffffff;
+  --data:#667eea;--ref:#a0aec0;--chart-bg:#ffffff;
+  --body-bg:linear-gradient(135deg,#667eea 0%,#764ba2 100%) fixed;
+  --side-bg:rgba(255,255,255,.95);--side-solid:#ffffff;--topbar-bg:linear-gradient(135deg,#667eea,#764ba2);--surface:#ffffff;--surface2:#f7fafc;--surface3:#edf2f7;--opt-bg:#ffffff;--code-bg:#f7fafc;--code-fg:#2d3748;
+  --logo-bg:linear-gradient(135deg,#667eea,#764ba2);--logo-fg:#ffffff;--fab-bg:linear-gradient(135deg,#667eea,#764ba2);--fab-fg:#ffffff;
+  --h1:#5a67d8;--h2:#764ba2;--h3:#b7791f;--link:#5a67d8;--link-hov:#764ba2;--warn-red:#e53e3e;--warn-green:#38a169;
+  --fonte-corpo:'Segoe UI',Arial,sans-serif;--fonte-mono:"Courier New",monospace}
+
+/* ---------- Regras de estilo por tema (originais de index.html) ---------- */
+/* vidro (Roxo, Tecnológico e Escuro): cartões translúcidos com brilho no topo e sombra suave */
+:root:is([data-tema="roxo"],[data-tema="tech"],[data-tema="escuro"]) :is(.panel,.kpi,.ikpi,.pipeline,.v-card,.ch-card,.login-card,.modal){background-image:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.012));box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px rgba(0,0,0,.38)}
+:root[data-tema="roxo"] :is(.panel,.kpi,.pipeline,.v-card,.ch-card){border-radius:16px}
+:root[data-tema="escuro"] :is(.panel,.kpi,.pipeline,.v-card,.ch-card){border-radius:14px}
+:root[data-tema="escuro"] .nav.active{background:rgba(255,255,255,.08);color:#ffffff;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+:root[data-tema="escuro"] .btn.primary{box-shadow:0 0 18px rgba(129,140,248,.3)}
+:root[data-tema="escuro"] #retSVG polyline[stroke="var(--data)"]{filter:drop-shadow(0 0 4px rgba(165,180,252,.55))}
+:root[data-tema="tech"] :is(.panel,.kpi,.pipeline,.v-card,.ch-card){border-radius:16px}
+:root[data-tema="roxo"] .btn.primary{box-shadow:0 0 22px rgba(139,92,246,.45)}
+:root[data-tema="roxo"] .nav.active{background:linear-gradient(135deg,rgba(139,92,246,.42),rgba(109,40,217,.22));color:#ffffff;box-shadow:0 0 18px rgba(139,92,246,.35),inset 0 1px 0 rgba(255,255,255,.12)}
+:root[data-tema="roxo"] .brand .logo{box-shadow:0 0 20px rgba(139,92,246,.55)}
+:root[data-tema="roxo"] .ph h2{text-shadow:0 0 24px rgba(139,92,246,.25)}
+:root[data-tema="tech"] .btn.primary{box-shadow:0 0 22px rgba(59,130,246,.45)}
+:root[data-tema="tech"] .nav.active{background:rgba(59,130,246,.16);color:#bfdbfe;box-shadow:0 0 18px rgba(59,130,246,.3),inset 0 0 0 1px rgba(96,165,250,.35)}
+:root[data-tema="tech"] .brand .logo{box-shadow:0 0 20px rgba(59,130,246,.55)}
+:root[data-tema="tech"] #retSVG polyline[stroke="var(--data)"],:root[data-tema="roxo"] #retSVG polyline[stroke="var(--data)"]{filter:drop-shadow(0 0 5px rgba(var(--acc-rgb),.7))}
+:root[data-tema="youtube"] .brand .logo{border-radius:50%}
+:root[data-tema="youtube"] :is(.ph h2,.brand h1,.intel-h h3,.dash-sec,.radar-sec-h h3,.dna-rotulo){font-family:'Oswald','Space Grotesk',system-ui,sans-serif;text-transform:uppercase;letter-spacing:.02em;font-weight:700}
+:root[data-tema="youtube"] :is(.ikpi .v,.kpi .v,.stage .n){font-family:'Oswald','Space Grotesk',system-ui,sans-serif;font-weight:600}
+:root[data-tema="youtube"] :is(.panel,.kpi,.ikpi,.pipeline,.v-card,.dv,.ch-card,.modal,.login-card,.opp,.hot-li,.li,.pub-row,.btn,input,select,textarea,.tema-card,.toast,.seg,.acel button,.tag,.chip,.oppc,.rrow,.radar-brief,.dna-box,.dna-sinal,.radar-como,.fluxo span,.oi-refs,.compat,.crit-chip,.oppc-crit,.oppc-thumbs a,.oppc-thumbs .mais,.brief-li){border-radius:3px}
+:root[data-tema="youtube"] :is(.empty,.drop){border:1.5px dashed rgba(249,115,22,.6);background:transparent}
+:root[data-tema="youtube"] .nav{border-radius:3px}
+:root[data-tema="youtube"] .nav.active{background:rgba(230,33,23,.2);color:#ffffff;box-shadow:inset 3px 0 0 #fb923c}
+:root[data-tema="youtube"] .panel h3{letter-spacing:0}
+:root:is([data-tema="roxo"],[data-tema="tech"],[data-tema="escuro"]) .oppc{background-image:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.012));box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px rgba(0,0,0,.38)}
+:root:is([data-tema="roxo"],[data-tema="tech"],[data-tema="escuro"]) .oppc.crit{box-shadow:inset 3px 0 0 var(--red),inset 0 1px 0 rgba(255,255,255,.06),0 14px 34px rgba(0,0,0,.38)}
+:root:is([data-tema="roxo"],[data-tema="tech"]) .oppc{border-radius:16px}
+:root[data-tema="youtube"] .oppc-n{color:#fdba74}
+
+/* ---------- futurista (de VISUAL-FUTURISTA.css, adaptado às classes do contrato) ---------- */
+:root[data-tema="futurista"] :is(.panel,.kpi,.ikpi,.pipeline,.v-card,.ch-card,.login-card,.modal){border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(8px);box-shadow:0 0 12px rgba(0,240,255,.55),0 0 28px rgba(0,240,255,.2)}
+:root[data-tema="futurista"] :is(.ph h2,.brand h1,.panel h3){font-family:var(--fonte-titulo);text-transform:uppercase;letter-spacing:.12em;color:var(--cyan);text-shadow:0 0 12px rgba(0,240,255,.55),0 0 28px rgba(0,240,255,.2)}
+:root[data-tema="futurista"] .btn.primary{border:1px solid var(--cyan);border-radius:6px;font-family:var(--fonte-titulo);text-transform:uppercase;letter-spacing:.08em;box-shadow:0 0 12px rgba(0,240,255,.55),0 0 28px rgba(0,240,255,.2)}
+:root[data-tema="futurista"] .nav.active{background:rgba(0,240,255,.12);color:var(--cyan);box-shadow:inset 0 0 0 1px rgba(0,240,255,.45)}
+:root[data-tema="futurista"] :is(button,a,input,select,textarea):focus-visible{outline:2px solid var(--magenta);outline-offset:3px}
+
+/* ---------- profissional (de styles.css / landing.css) ---------- */
+:root[data-tema="profissional"] :is(.panel,.kpi,.ikpi,.pipeline,.v-card,.ch-card,.login-card){border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+:root[data-tema="profissional"] .modal{border-radius:14px;box-shadow:0 12px 36px rgba(0,0,0,.55)}
+:root[data-tema="profissional"] .btn.primary{border-radius:6px;box-shadow:0 4px 16px rgba(255,79,163,.3)}
+:root[data-tema="profissional"] .nav.active{background:rgba(255,79,163,.1);color:var(--h1);box-shadow:inset 3px 0 0 var(--h1)}
+:root[data-tema="profissional"] .brand h1{background:var(--logo-bg);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+
+/* ---------- senai (claro) ---------- */
+:root[data-tema="senai"] :is(.panel,.kpi,.ikpi,.pipeline,.v-card,.ch-card,.login-card){border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(45,55,72,.12)}
+:root[data-tema="senai"] .modal{border-radius:14px;box-shadow:0 12px 36px rgba(45,55,72,.2)}
+:root[data-tema="senai"] .btn.primary{border-radius:6px;box-shadow:0 4px 16px rgba(102,126,234,.35)}
+:root[data-tema="senai"] .nav.active{background:rgba(102,126,234,.12);color:#5a67d8;box-shadow:inset 3px 0 0 #667eea}
+
+/* ---------- rosa e lilas: brilho no botão principal e no item de menu ativo ---------- */
+:root:is([data-tema="rosa"],[data-tema="lilas"],[data-tema="violeta"],[data-tema="laranja"]) .btn.primary{box-shadow:0 0 20px rgba(var(--acc-rgb),.40)}
+:root:is([data-tema="rosa"],[data-tema="lilas"],[data-tema="violeta"],[data-tema="laranja"]) .nav.active{background:rgba(var(--acc-rgb),.14);color:var(--text);box-shadow:inset 3px 0 0 var(--cyan)}
+:root[data-tema="lilas"] .nav.active{box-shadow:inset 3px 0 0 #fb923c}
+
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}}

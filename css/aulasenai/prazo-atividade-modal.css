@@ -1,0 +1,160 @@
+/* Modal "⏰ Prazo de resposta" (assets/js/prazo-atividade-modal.js), aberto sobre o modal de
+   edição da atividade. Cores explícitas: o tema SENAI deixa o texto herdado branco. */
+:root {
+    --prazo-fundo-tela: rgba(0, 0, 0, 0.55);
+    --prazo-fundo: #ffffff;
+    --prazo-borda: #cbd5e0;
+    --prazo-texto: #1a202c;
+    --prazo-suave: #4a5568;
+    --prazo-azul: #004384;
+    --prazo-azul-texto: #ffffff;
+    --prazo-perigo: #b42318;
+    --prazo-perigo-texto: #ffffff;
+    --prazo-neutro: #edf2f7;
+    --prazo-raio: 8px;
+    --prazo-espaco: 12px;
+    --prazo-largura: 520px;
+    --prazo-camada: 2000;
+}
+
+.prazo-fundo {
+    position: fixed;
+    inset: 0;
+    z-index: var(--prazo-camada);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--prazo-espaco);
+    background: var(--prazo-fundo-tela);
+}
+
+.prazo-caixa {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: var(--prazo-largura);
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 16px;
+    background: var(--prazo-fundo);
+    color: var(--prazo-texto);
+    border-radius: var(--prazo-raio);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+.prazo-cabecalho {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--prazo-espaco);
+}
+
+.prazo-titulo {
+    margin: 0;
+    color: var(--prazo-azul);
+    font-size: 20px;
+}
+
+.prazo-atual {
+    margin: var(--prazo-espaco) 0;
+    color: var(--prazo-texto);
+    font-weight: 700;
+}
+
+.prazo-secao {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: var(--prazo-espaco);
+    padding: var(--prazo-espaco);
+    background: var(--prazo-fundo);
+    border: 1px solid var(--prazo-borda);
+    border-radius: var(--prazo-raio);
+}
+
+.prazo-subtitulo {
+    margin: 0;
+    color: var(--prazo-azul);
+    font-size: 16px;
+}
+
+.prazo-campo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.prazo-campo--linha {
+    flex-direction: row-reverse;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.prazo-rotulo {
+    color: var(--prazo-texto);
+    font-size: 14px;
+}
+
+.prazo-controle {
+    padding: 8px;
+    background: var(--prazo-fundo);
+    color: var(--prazo-texto);
+    border: 1px solid var(--prazo-borda);
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.prazo-controle[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+}
+
+.prazo-texto {
+    margin: 0;
+    color: var(--prazo-suave);
+    font-size: 13px;
+}
+
+.prazo-acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.prazo-btn {
+    min-height: 40px;
+    padding: 8px 14px;
+    background: var(--prazo-neutro);
+    color: var(--prazo-texto);
+    border: 1px solid var(--prazo-borda);
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.prazo-btn:hover { filter: brightness(0.95); }
+
+.prazo-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.prazo-btn--principal {
+    background: var(--prazo-azul);
+    color: var(--prazo-azul-texto);
+    border-color: var(--prazo-azul);
+}
+
+.prazo-btn--perigo {
+    background: var(--prazo-perigo);
+    color: var(--prazo-perigo-texto);
+    border-color: var(--prazo-perigo);
+}
+
+.prazo-btn--fechar {
+    min-height: 34px;
+    background: var(--prazo-neutro);
+    color: var(--prazo-texto);
+}

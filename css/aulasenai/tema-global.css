@@ -1,0 +1,400 @@
+/*
+ * tema-global.css — liga as telas do site ao tema escolhido (<html data-tema="...">).
+ * Carregar DEPOIS de temas.css e dos CSS de cada página. Só mexe em: fundo da página,
+ * cabeçalho/menu, cartões e painéis principais e botões principais.
+ * Seletores começam em html[data-tema] para vencer os CSS próprios de cada página.
+ */
+
+/* ---------- Fundo da página ---------- */
+html[data-tema] body {
+  background: var(--body-bg);
+  background-attachment: fixed;
+}
+
+/* ---------- Cabeçalho (topbar) e menu ---------- */
+html[data-tema] .header-usuario__barra,
+html[data-tema] .guia-cabecalho,
+html[data-tema] .painel-cabecalho,
+html[data-tema] .mp-cabecalho {
+  background: var(--topbar-bg);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+html[data-tema] .header-usuario__menu-link {
+  color: var(--text);
+  border-color: rgba(var(--acc-rgb), 0.6);
+}
+
+html[data-tema] .header-usuario__menu-link:hover {
+  background: rgba(var(--acc-rgb), 0.18);
+  color: var(--text);
+}
+
+/* senai: topbar com gradiente escuro, então o texto do cabeçalho é branco */
+html[data-tema="senai"] .header-usuario__barra,
+html[data-tema="senai"] .guia-cabecalho,
+html[data-tema="senai"] .painel-cabecalho,
+html[data-tema="senai"] .mp-cabecalho,
+html[data-tema="senai"] .header-usuario__nome,
+html[data-tema="senai"] .header-usuario__menu-link,
+html[data-tema="senai"] .header-usuario__menu-link:hover {
+  color: #ffffff;
+}
+
+html[data-tema="senai"] .header-usuario__menu-link {
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+html[data-tema] .tp-menu-cabecalho,
+html[data-tema] .rel-abas {
+  background: var(--side-bg);
+  border-color: var(--line);
+}
+
+/* ---------- Cartões e painéis principais ---------- */
+html[data-tema] .guia-cartao,
+html[data-tema] .mp-cartao,
+html[data-tema] .aula,
+html[data-tema] .painel-filtros,
+html[data-tema] .painel-detalhe,
+html[data-tema] .tp-modal__caixa,
+html[data-tema] .resumo,
+html[data-tema] .apresentacao-professor,
+html[data-tema] .curriculo__cartao {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+html[data-tema] .guia-cartao h2,
+html[data-tema] .tp-modal__caixa h2 {
+  color: var(--cyan);
+}
+
+html[data-tema] .guia-tabela,
+html[data-tema] .painel-tabela {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+/* ---------- Botões principais ---------- */
+html[data-tema] .guia-botao,
+html[data-tema] .painel-botao,
+html[data-tema] .mp-botao,
+html[data-tema] .btn.principal,
+html[data-tema] .header-usuario__botao {
+  background: var(--btn-bg);
+  color: var(--on-btn);
+  border-color: transparent;
+}
+
+html[data-tema] .guia-botao:hover,
+html[data-tema] .painel-botao:hover,
+html[data-tema] .mp-botao:hover,
+html[data-tema] .btn.principal:hover,
+html[data-tema] .header-usuario__botao:hover {
+  background: var(--btn-bg-h);
+  color: var(--on-btn);
+}
+
+/* ---------- Cartões da faixa de matérias (texto var(--text) precisa de fundo do tema) ---------- */
+html[data-tema] .faixa-materias__card {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+html[data-tema] .faixa-materias__card:hover {
+  background: rgba(var(--acc-rgb), 0.18);
+  border-color: rgba(var(--acc-rgb), 0.6);
+}
+
+html[data-tema] .faixa-materias__card--atual {
+  background: var(--btn-bg);
+  color: var(--on-btn);
+  border-color: transparent;
+}
+
+/* ---------- Área branca em volta dos cartões (container e resumo dos índices) ---------- */
+html[data-tema] .container {
+  background: var(--panel);
+  color: var(--text);
+}
+
+html[data-tema] .resumo {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+/* ---------- Faixa de matérias: moldura, título, filtros, ON/OFF e turma ---------- */
+html[data-tema] .faixa-materias {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+html[data-tema] .faixa-materias__titulo,
+html[data-tema] .faixa-materias__turma {
+  color: var(--cyan);
+}
+
+html[data-tema] .faixa-materias__turma select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+html[data-tema] .faixa-materias__filtro,
+html[data-tema] .faixa-materias__onoff,
+html[data-tema] .faixa-materias__favorita {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+html[data-tema] .faixa-materias__filtro:hover,
+html[data-tema] .faixa-materias__favorita:hover {
+  background: var(--panel);
+  color: var(--text);
+}
+
+/* Estados ligado/ativo seguem o tema; o filtro ativo continua piscando, na cor do tema */
+html[data-tema] .faixa-materias__filtro--ativo,
+html[data-tema] .faixa-materias__filtro--ativo:hover,
+html[data-tema] .faixa-materias__onoff--ligado {
+  background: var(--btn-bg);
+  color: var(--on-btn);
+  border-color: transparent;
+}
+
+html[data-tema] .faixa-materias__filtro--ativo,
+html[data-tema] .faixa-materias__filtro--ativo:hover {
+  --verde-filtro-brilho: rgba(var(--acc-rgb), 0.45);
+}
+
+/* ---------- Textos e botões secundários dentro dos cartões de matéria ---------- */
+html[data-tema] .aula .num {
+  color: var(--cyan);
+}
+
+html[data-tema] .aula .meta {
+  color: var(--text);
+  opacity: 0.8;
+}
+
+html[data-tema] .aula .acoes .btn:not(.principal) {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+html[data-tema] .aula .acoes .btn:not(.principal):hover {
+  background: var(--panel);
+  color: var(--text);
+}
+
+html[data-tema] .aula .acoes .btn.off {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line);
+  opacity: 0.55;
+}
+
+html[data-tema] .grade-aviso {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+/* ---------- Quadro de progresso da turma (página de atividade do professor) ---------- */
+html[data-tema] {
+  --progresso-turma-fundo: var(--surface);
+  --progresso-turma-borda: var(--line);
+  --progresso-turma-texto-suave: var(--muted);
+  --progresso-turma-barra-fundo: var(--panel);
+  --progresso-turma-barra: var(--cyan);
+  --progresso-turma-geral: var(--cyan);
+  --progresso-turma-chave-fundo: var(--dim);
+  --progresso-turma-chave-ligada: var(--cyan);
+  --progresso-turma-vazia-fundo: var(--panel);
+  --progresso-turma-vazia-texto: var(--dim);
+}
+
+html[data-tema] .progresso-turma,
+html[data-tema] .progresso-turma__titulo {
+  color: var(--text);
+}
+
+/* ---------- Botões Certa / Meia certa / Errada / Histórico da correção seguem o tema ---------- */
+html[data-tema] {
+  --confirmar-fundo: var(--panel);
+  --confirmar-borda: var(--line);
+  --confirmar-texto: var(--text);
+  --modal-nota-texto: var(--text);
+}
+
+html[data-tema] .historico-nota__botao {
+  background: var(--panel);
+  border-color: var(--line);
+}
+
+/* ---------- Menu de atividades (barra e submenus) segue o tema ---------- */
+html[data-tema] {
+  --menu-fundo: var(--topbar-bg);
+  --menu-texto: var(--text);
+  --menu-destaque: var(--cyan);
+  --menu-borda: var(--line);
+  --menu-submenu-fundo: var(--surface);
+  --menu-submenu-texto: var(--text);
+  --menu-submenu-hover: var(--panel);
+  --menu-submenu-atual: var(--panel);
+}
+
+/* ---------- Página de atividade: cartões, questões, alternativas e barra de exportação ---------- */
+html[data-tema] .aula-card {
+  background: var(--surface);
+  color: var(--text);
+  border-left-color: var(--cyan);
+}
+
+html[data-tema] .aula-card h2,
+html[data-tema] .aula-card h3,
+html[data-tema] .aula-card p,
+html[data-tema] .aula-card label {
+  color: var(--text);
+}
+
+html[data-tema] .aula-badge {
+  background: var(--btn-bg);
+  color: var(--on-btn);
+}
+
+html[data-tema] .content-box {
+  background: var(--surface2);
+  color: var(--text);
+  border-left-color: var(--cyan);
+}
+
+html[data-tema] .content-label {
+  color: var(--cyan);
+}
+
+html[data-tema] .alternativas li {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+html[data-tema] .alternativas .letra {
+  color: var(--cyan);
+}
+
+html[data-tema] .export-bar {
+  background: var(--panel);
+  color: var(--text);
+  border-bottom-color: var(--cyan);
+}
+
+html[data-tema] .export-bar small,
+html[data-tema] .export-bar label {
+  color: var(--muted);
+}
+
+html[data-tema] .btn-export {
+  background: var(--btn-bg);
+  color: var(--on-btn);
+}
+
+html[data-tema] .identificacao-estudante__campo {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+/* ---------- Tabelas de notas e respostas: células e linhas pares seguem o tema ---------- */
+html[data-tema] table tbody td {
+  color: var(--text);
+}
+
+html[data-tema] table tbody tr:nth-child(even) td {
+  background: var(--panel);
+}
+
+/* ---------- Alunos abaixo do mínimo: fundo na cor de destaque do tema, texto do tema ---------- */
+html[data-tema] .relatorio-professor__aluno--abaixo-minimo > tr > td {
+  background: rgba(var(--acc-rgb), 0.22);
+  color: var(--text);
+}
+
+html[data-tema] .relatorio-professor__aluno--abaixo-minimo > tr > td > .relatorio-professor__tabela-tentativas {
+  background: rgba(var(--acc-rgb), 0.22);
+}
+
+/* ---------- Combos (select) e suas opções seguem o tema ---------- */
+html[data-tema] select {
+  background-color: var(--surface);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+html[data-tema] select option {
+  background-color: var(--surface);
+  color: var(--text);
+}
+
+/* ---------- Banner do curso (título e subtítulo) segue o tema ---------- */
+html[data-tema] .container > header {
+  background: var(--btn-bg);
+  color: var(--on-btn);
+  border-bottom-color: var(--cyan);
+}
+
+/* ---------- Atividade objetiva: caixas de fundo claro fixo seguem o tema (regra unificada) ----------
+   Cobre horário da turma, grupos de filtro/chaves, abas de turma, folha de respostas
+   (contagem + Finalizar), cabeçalhos das tabelas do relatório, resultado aprovado e
+   a barra da turma favorita. Verde/vermelho de certo/errado ficam intactos. */
+html[data-tema] .relatorio-professor__horario,
+html[data-tema] .relatorio-professor__grupo-filtro,
+html[data-tema] .relatorio-professor__aba,
+html[data-tema] .folha-respostas,
+html[data-tema] .resultado-atividade--aprovado,
+html[data-tema] .barra-turma-favorita {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+html[data-tema] .relatorio-professor__aba:hover {
+  background: var(--panel2);
+}
+
+html[data-tema] .relatorio-professor__aba--ativa,
+html[data-tema] .relatorio-professor__aba--ativa:hover {
+  background: var(--btn-bg);
+  color: var(--on-btn);
+}
+
+html[data-tema] .relatorio-professor__tabela th,
+html[data-tema] .relatorio-professor__tabela-tentativas th {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+html[data-tema] .relatorio-professor__tabela td,
+html[data-tema] .relatorio-professor__tabela-tentativas td {
+  border-color: var(--line);
+}
+
+html[data-tema] .relatorio-professor__horario input,
+html[data-tema] .barra-turma-favorita__lista {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+html[data-tema] .relatorio-professor__nota-final {
+  color: var(--cyan);
+}

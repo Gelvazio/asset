@@ -1,0 +1,449 @@
+// Provedor "banco" das respostas das atividades (usado por assets/js/respostas-atividade.js).
+// Ler a atividade é livre; o login (Supabase Auth) só é pedido ao marcar uma alternativa.
+// Respostas: tabela resposta_atividade (upsert por aluno/atividade/tentativa/item).
+// Entrega: tabela entrega_atividade (uma por tentativa).
+// Mínimo para ENTREGAR: minimo_questoes_para_entregar. Quantidade para a NOTA (#319):
+// questoes_para_nota (quantidade do aluno, senão o mínimo).
+// Tentativas: o limite vem do banco (atividade.max_tentativas); nova tentativa só o professor libera
+// (tabela liberacao_atividade). Plano: docs/regra-3-tentativas-atividade.md.
+// O gabarito NUNCA vem para a página do aluno (tabela gabarito só é lida pelo professor).
+// Depende de: supabase-js v2 (CDN), js/supabase.js (SUPABASE, sbH, sbGet) e js/login.js
+// (PAGINA_LOGIN, PARAMETRO_VOLTAR, fazerLogout).
+
+const ROTA_RESPOSTAS =
+    '/rest/v1/resposta_atividade?on_conflict=aluno_id,atividade_id,tentativa,item';
+const ROTA_ENTREGAS = '/rest/v1/entrega_atividade';
+const ROTA_NOTA = '/rest/v1/rpc/nota_da_tentativa';
+const ROTA_MINIMO_OBJETIVA = '/rest/v1/rpc/minimo_questoes_para_entregar';
+const ROTA_QUESTOES_NOTA = '/rest/v1/rpc/questoes_para_nota';
+const PERFIL_PROFESSOR_PAGINA = 'PROFESSOR';
+const MSG_PROFESSOR_NAO_ASSINA = 'O professor não assina atividades: só os alunos respondem. ' +
+    'Aqui você acompanha as respostas e ';
+const PREFERENCIA_UPSERT = 'resolution=merge-duplicates,return=minimal';
+const CODIGO_JA_EXISTE = 409;
+const DIGITOS_ITEM = 2;
+const MSG_ENTRAR_PARA_RESPONDER = 'Para responder, entre com o seu usuário e senha.\n\n' +
+    'Ir para a página de login agora?';
+const MSG_LEITURA_LIVRE = 'Você pode ler a atividade à vontade. ' +
+    'Para marcar as respostas, entre com o seu usuário.';
+const MSG_ERRO_ENTREGA = 'Não foi possível registrar a entrega. Confira se todas as questões ' +
+    'estão respondidas e tente de novo.';
+const MSG_ENTREGA_INCOMPLETA = 'Atenção! A atividade ainda não está completa no banco.';
+const MSG_ORIENTACAO_FALTANDO = 'Marque essas questões, espere o aviso "Resposta gravada" e ' +
+    'finalize de novo.';
+
+/**
+ * Formata o número do item como aparece na página (ex.: 1 → "01").
+ * @param {number} item - Número do item no banco.
+ * @returns {string} Número com dois dígitos.
+ */
+function formatarNumeroItem(item) {
+    return String(item).padStart(DIGITOS_ITEM, '0');
+}
+
+/**
+ * Busca a atividade desta página no banco pelo caminho da URL.
+ * @returns {Promise<{id: number, total_itens: number}|null>} Atividade ou null se não existir.
+ */
+async function buscarAtividadeDaPagina() {
+    const caminho = encodeURIComponent(location.pathname);
+    const linhas = await sbGet('atividade',
+        'select=id,total_itens,max_tentativas&pagina=eq.' + caminho);
+    return linhas[0] || null;
+}
+
+/**
+ * Lê o aluno logado (nome, e-mail e turma); o professor não tem linha em aluno e usa o metadata.
+ * Sem matrícula na tabela aluno, o e-mail é o identificador do PDF (marca d'água / rodapé).
+ * @param {Object} usuario - Usuário do Supabase Auth.
+ * @returns {Promise<{nome: string, email: string, turma: string}>} Identificação para exibir.
+ */
+async function lerIdentificacao(usuario) {
+    // Duas FKs ligam aluno e turma (turma_codigo e turma.lider_aluno_id): o embed diz qual usar.
+    const linhas = await sbGet('aluno', 'select=nome,email,turma_codigo,' +
+        'turma!aluno_turma_codigo_fkey(nome)&id=eq.' + encodeURIComponent(usuario.id));
+    const aluno = linhas[0];
+    const emailAuth = usuario.email || '';
+    if (!aluno) {
+        return { nome: usuario.user_metadata?.nome || emailAuth, email: emailAuth, turma: '' };
+    }
+    const nomeTurma = aluno.turma?.nome ? aluno.turma.nome + ' (' + aluno.turma_codigo + ')' : '';
+    return { nome: aluno.nome, email: aluno.email || emailAuth, turma: nomeTurma };
+}
+
+/**
+ * Lê a tentativa em andamento do aluno logado: a maior liberada pelo professor (mínimo 1).
+ * @param {number} atividadeId - Id da atividade.
+ * @param {string} alunoId - Id do usuário logado.
+ * @returns {Promise<number>} Número da tentativa em andamento.
+ */
+async function lerTentativaAtual(atividadeId, alunoId) {
+    // Filtro pelo usuário: o RLS deixa o professor ler as liberações dos alunos da turma.
+    const liberacoes = await sbGet('liberacao_atividade',
+        'select=tentativa&atividade_id=eq.' + atividadeId + '&aluno_id=eq.' + alunoId);
+    return Math.max(1, ...liberacoes.map((liberacao) => liberacao.tentativa));
+}
+
+/**
+ * Lê acertos e total da tentativa entregue (a conta é feita no banco: o gabarito não sai).
+ * @param {number} atividadeId - Id da atividade.
+ * @param {number} tentativa - Tentativa entregue.
+ * @returns {Promise<{acertos: number, total: number}|null>} Resultado ou null se indisponível.
+ */
+async function lerResultadoDaTentativa(atividadeId, tentativa) {
+    const corpo = { p_atividade: atividadeId, p_tentativa: tentativa };
+    const resposta = await enviarAoBanco(ROTA_NOTA, corpo, 'return=representation');
+    if (!resposta.ok) return null;
+    const [linha] = await resposta.json();
+    return linha && linha.total > 0 ? linha : null;
+}
+
+/**
+ * Lê o mínimo de questões que o aluno precisa responder para entregar (o do aluno, senão o da
+ * atividade, senão todas — função minimo_questoes_para_entregar). Um valor fora de 1 ao total
+ * (banco sem o SQL de 2026-10-09 ou falha) vale como "todas", como era antes.
+ * @param {Object} sessao - Sessão do provedor (atividade e usuário).
+ * @returns {Promise<number>} Mínimo de questões para entregar.
+ */
+async function lerMinimoQuestoesObjetiva(sessao) {
+    const total = Number(sessao.atividade.total_itens || 0);
+    try {
+        const corpo = { p_atividade: sessao.atividade.id, p_aluno: sessao.usuario.id };
+        const resposta = await enviarAoBanco(ROTA_MINIMO_OBJETIVA, corpo, 'return=representation');
+        if (!resposta.ok) return total;
+        const minimo = Number(await resposta.json());
+        const estaValido = Number.isInteger(minimo) && minimo >= 1 && minimo <= total;
+        return estaValido ? minimo : total;
+    } catch (erro) {
+        return total;
+    }
+}
+
+/**
+ * Lê a quantidade de questões que conta para a NOTA do aluno (função questoes_para_nota: a
+ * quantidade definida pelo professor, senão o mínimo para entregar). Só a nota usa este valor;
+ * a entrega continua com o mínimo. Falha ou valor fora de 1 ao total vale como o mínimo.
+ * @param {Object} sessao - Sessão do provedor (atividade e usuário).
+ * @param {number} minimo - Mínimo para entregar (plano B).
+ * @returns {Promise<number>} Quantidade de questões para a nota.
+ */
+async function lerQuestoesParaNotaObjetiva(sessao, minimo) {
+    const total = Number(sessao.atividade.total_itens || 0);
+    try {
+        const corpo = { p_atividade: sessao.atividade.id, p_aluno: sessao.usuario.id };
+        const resposta = await enviarAoBanco(ROTA_QUESTOES_NOTA, corpo, 'return=representation');
+        if (!resposta.ok) return minimo;
+        const quantidade = Number(await resposta.json());
+        const estaValido = Number.isInteger(quantidade) && quantidade >= 1 && quantidade <= total;
+        return estaValido ? quantidade : minimo;
+    } catch (erro) {
+        return minimo;
+    }
+}
+
+/**
+ * Lê as respostas e a entrega do aluno logado na tentativa em andamento desta atividade.
+ * @param {number} atividadeId - Id da atividade.
+ * @param {string} alunoId - Id do usuário logado (o professor lê os alunos da turma pelo RLS).
+ * @returns {Promise<{respostas: Object<string, string>, herdadas: string[], entregueEm: string,
+ *     tentativa: number}>}
+ *     Dados do aluno.
+ */
+async function lerRespostasDoAluno(atividadeId, alunoId) {
+    const tentativa = await lerTentativaAtual(atividadeId, alunoId);
+    const filtro = 'atividade_id=eq.' + atividadeId + '&tentativa=eq.' + tentativa +
+        '&aluno_id=eq.' + alunoId;
+    const [linhas, entregas] = await Promise.all([
+        sbGet('resposta_atividade', 'select=item,letra,herdada&' + filtro),
+        sbGet('entrega_atividade', 'select=entregue_em&' + filtro),
+    ]);
+    const respostas = {};
+    linhas.forEach((linha) => { respostas[formatarNumeroItem(linha.item)] = linha.letra; });
+    const herdadas = linhas.filter((linha) => linha.herdada)
+        .map((linha) => formatarNumeroItem(linha.item));
+    return { respostas, herdadas, entregueEm: entregas[0]?.entregue_em || '', tentativa };
+}
+
+/**
+ * Envia uma gravação autenticada (JWT do aluno) para a API REST.
+ * @param {string} rota - Rota a partir da URL do projeto.
+ * @param {Object} corpo - Corpo JSON.
+ * @param {string} preferencia - Header Prefer.
+ * @returns {Promise<Response>} Resposta do fetch.
+ */
+async function enviarAoBanco(rota, corpo, preferencia) {
+    return fetch(SUPABASE.URL + rota, {
+        method: 'POST',
+        headers: { ...(await sbH()), Prefer: preferencia },
+        body: JSON.stringify(corpo),
+    });
+}
+
+/**
+ * Se a atividade tem prazo (atividade.encerra_em) e ele já passou, devolve a mensagem explicando.
+ * @param {number} atividadeId - Id da atividade.
+ * @returns {Promise<string>} Mensagem de prazo encerrado ou vazio (sem prazo ou dentro dele).
+ */
+async function explicarPrazoEncerrado(atividadeId) {
+    try {
+        const [atividade] = await sbGet('atividade', 'select=encerra_em&id=eq.' + atividadeId);
+        const encerraEm = atividade && atividade.encerra_em ? new Date(atividade.encerra_em) : null;
+        const prazoVencido = encerraEm && Date.now() >= encerraEm.getTime();
+        if (!prazoVencido) return '';
+
+        return 'Prazo encerrado em ' + encerraEm.toLocaleString('pt-BR', {
+            timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }) +
+            '! Só o professor pode liberar esta atividade de novo. Procure o professor.';
+    } catch (erro) {
+        return '';
+    }
+}
+
+const MSG_ATIVIDADE_BLOQUEADA = 'Atividade bloqueada pelo professor. O que você já ' +
+    'respondeu está salvo: quando ela for liberada, você continua de onde parou.';
+
+/**
+ * Se a atividade sumiu para o aluno (RLS: bloqueada para a turma), explica o bloqueio.
+ * @param {number} atividadeId - Id da atividade.
+ * @returns {Promise<string>} Mensagem de bloqueio ou vazio (a atividade continua visível).
+ */
+async function explicarBloqueioAtividade(atividadeId) {
+    try {
+        const linhas = await sbGet('atividade', 'select=id&id=eq.' + atividadeId);
+        return linhas.length ? '' : MSG_ATIVIDADE_BLOQUEADA;
+    } catch (erro) {
+        return '';
+    }
+}
+
+/**
+ * Se o prazo da atividade passou ou a turma do aluno está fora do horário, explica o motivo.
+ * @param {number} atividadeId - Id da atividade.
+ * @returns {Promise<string>} Mensagem de prazo/horário ou vazio (sem restrição).
+ */
+async function explicarForaDoHorario(atividadeId) {
+    const prazoEncerrado = await explicarPrazoEncerrado(atividadeId);
+    if (prazoEncerrado) return prazoEncerrado;
+    try {
+        const resposta = await enviarAoBanco('/rest/v1/rpc/horario_da_turma_do_aluno', {},
+            'return=representation');
+        if (!resposta.ok) return '';
+
+        const [horario] = await resposta.json();
+        if (!horario || horario.dentro) return '';
+
+        return 'Fora do horário da turma! Só é possível responder e entregar das ' +
+            horario.hora_inicio.slice(0, 5) + ' às ' + horario.hora_fim.slice(0, 5) +
+            ' (horário de Brasília).';
+    } catch (erro) {
+        return '';
+    }
+}
+
+/**
+ * Registra a hora em que o aluno abriu a tentativa em andamento (só a primeira abertura vale).
+ * Falha silenciosa: nunca impede o aluno de responder.
+ * @param {number} atividadeId - Id da atividade.
+ * @param {number} tentativa - Tentativa em andamento.
+ * @param {string} alunoId - Id do aluno logado.
+ */
+async function registrarAbertura(atividadeId, tentativa, alunoId) {
+    try {
+        await enviarAoBanco('/rest/v1/abertura_atividade',
+            { aluno_id: alunoId, atividade_id: atividadeId, tentativa },
+            'resolution=ignore-duplicates,return=minimal');
+    } catch (erro) {
+        console.warn('Abertura não registrada:', erro.message);
+    }
+}
+
+/**
+ * Pergunta se o aluno quer entrar e o leva ao login, voltando depois para esta atividade.
+ */
+async function irParaLogin() {
+    const querEntrar = await confirmarPopup(MSG_ENTRAR_PARA_RESPONDER, {
+        titulo: 'Entrar para responder', textoConfirmar: 'Ir para o login',
+        textoCancelar: 'Agora não',
+    });
+    if (!querEntrar) return;
+    const retorno = location.pathname + location.search + location.hash;
+    location.assign(PAGINA_LOGIN + '?' + PARAMETRO_VOLTAR + '=' + encodeURIComponent(retorno));
+}
+
+/**
+ * Monta o bloco de identificação do modo banco: "Conectado como…" ou convite para entrar.
+ * @param {{usuario: Object|null, nome: string, turma: string}} sessao - Dados da sessão.
+ * @returns {HTMLElement} Bloco de identificação.
+ */
+function montarIdentificacaoBanco(sessao) {
+    const bloco = criarElemento('div', 'aula-card identificacao-estudante');
+    bloco.appendChild(criarElemento('span', 'aula-badge', 'IDENTIFICAÇÃO'));
+    if (!sessao.usuario) {
+        bloco.appendChild(criarElemento('div', 'aula-title', 'Leitura livre'));
+        bloco.appendChild(criarElemento('p', 'identificacao-estudante__texto', MSG_LEITURA_LIVRE));
+        bloco.appendChild(criarBotao('btn-export', '🔑 Entrar para responder', irParaLogin));
+        return bloco;
+    }
+    const complemento = sessao.turma ? ' — Turma ' + sessao.turma : '';
+    bloco.appendChild(criarElemento('div', 'aula-title', 'Conectado como ' + sessao.nome));
+    bloco.appendChild(criarElemento('p', 'identificacao-estudante__texto',
+        'Suas respostas são salvas automaticamente' + complemento + '.'));
+    const termos = termosTentativa();
+    const textoTentativa = sessao.ehProfessor
+        ? MSG_PROFESSOR_NAO_ASSINA + termos.professorLibera + '.'
+        : maiusculaInicial(termos.rotulo(sessao.tentativa, sessao.maximoTentativas)) + '. ' +
+            montarMsgRegraTentativas();
+    bloco.appendChild(criarElemento('p', 'identificacao-estudante__tentativa', textoTentativa));
+    bloco.appendChild(criarBotao('btn-export btn-export--secundario', '🚪 Sair', fazerLogout));
+    return bloco;
+}
+
+/**
+ * Carrega a sessão, a atividade e as respostas do aluno (se logado).
+ * @param {Object} sessao - Objeto da sessão do provedor (preenchido aqui).
+ * @returns {Promise<Object>} Dados iniciais para a página (disponivel=false se não houver banco).
+ */
+async function carregarDoBanco(sessao) {
+    const cliente = obterClienteSupabase();
+    if (!cliente) return { disponivel: false };
+    try {
+        sessao.atividade = await buscarAtividadeDaPagina();
+        if (!sessao.atividade) return { disponivel: false };
+        const { data } = await cliente.auth.getSession();
+        sessao.usuario = data?.session?.user || null;
+        if (!sessao.usuario) return { disponivel: true, logado: false, respostas: {} };
+
+        Object.assign(sessao, await lerIdentificacao(sessao.usuario));
+        const doAluno = await lerRespostasDoAluno(sessao.atividade.id, sessao.usuario.id);
+        sessao.tentativa = doAluno.tentativa;
+        const ehAluno = sessao.usuario.app_metadata?.perfil !== PERFIL_PROFESSOR_PAGINA;
+        if (ehAluno && !doAluno.entregueEm) {
+            await registrarAbertura(sessao.atividade.id, doAluno.tentativa, sessao.usuario.id);
+        }
+        const identificacao = { nome: sessao.nome, turma: sessao.turma };
+        const resultado = doAluno.entregueEm
+            ? await lerResultadoDaTentativa(sessao.atividade.id, doAluno.tentativa) : null;
+        sessao.ehProfessor = sessao.usuario.app_metadata?.perfil === PERFIL_PROFESSOR_PAGINA;
+        sessao.maximoTentativas = sessao.atividade.max_tentativas;
+        sessao.minimoQuestoes = await lerMinimoQuestoesObjetiva(sessao);
+        const questoesNota = await lerQuestoesParaNotaObjetiva(sessao, sessao.minimoQuestoes);
+        return {
+            disponivel: true, logado: true, ...identificacao, ...doAluno, resultado,
+            ehProfessor: sessao.ehProfessor, atividadeId: sessao.atividade.id,
+            alunoId: sessao.usuario.id,
+            maximoTentativas: sessao.maximoTentativas, minimoQuestoes: sessao.minimoQuestoes,
+            questoesNota,
+        };
+    } catch (erro) {
+        console.warn('Banco indisponível:', erro.message);
+        return { disponivel: false };
+    }
+}
+
+/**
+ * Lista os itens da tentativa que ainda não têm alternativa gravada no banco.
+ * @param {Object} sessao - Sessão do provedor (atividade, tentativa).
+ * @returns {Promise<string[]>} Números dos itens faltando (ex.: ["05", "12"]).
+ */
+async function listarItensNaoGravados(sessao) {
+    const filtro = 'atividade_id=eq.' + sessao.atividade.id + '&tentativa=eq.' + sessao.tentativa +
+        '&aluno_id=eq.' + sessao.usuario.id;
+    const linhas = await sbGet('resposta_atividade', 'select=item&' + filtro);
+    const gravados = new Set(linhas.map((linha) => Number(linha.item)));
+    const faltando = [];
+    for (let item = 1; item <= Number(sessao.atividade.total_itens || 0); item++) {
+        if (!gravados.has(item)) faltando.push(formatarNumeroItem(item));
+    }
+    return faltando;
+}
+
+/**
+ * Explica por que o banco recusou a entrega: fora do horário ou as questões que faltam.
+ * @param {Object} sessao - Sessão do provedor.
+ * @returns {Promise<string>} Mensagem para o aluno.
+ */
+async function explicarFalhaEntrega(sessao) {
+    const foraDoHorario = await explicarForaDoHorario(sessao.atividade.id);
+    if (foraDoHorario) return foraDoHorario;
+    try {
+        const faltando = await listarItensNaoGravados(sessao);
+        const total = Number(sessao.atividade.total_itens || 0);
+        const faltamParaMinimo = sessao.minimoQuestoes - (total - faltando.length);
+        if (faltamParaMinimo <= 0) return MSG_ERRO_ENTREGA;
+        return [MSG_ENTREGA_INCOMPLETA, '',
+            '• Faltam ' + faltamParaMinimo + ' questão(ões) para o mínimo de ' +
+                sessao.minimoQuestoes + ' de ' + total + '.',
+            '• Questões sem alternativa gravada: ' + faltando.join(', ') + '.', '',
+            MSG_ORIENTACAO_FALTANDO].join('\n');
+    } catch (erro) {
+        return MSG_ERRO_ENTREGA;
+    }
+}
+
+/**
+ * Cria o provedor de respostas no banco (mesma interface do provedor local).
+ * @returns {Object} Provedor usado por respostas-atividade.js.
+ */
+function criarProvedorRespostasBanco() {
+    const sessao = {
+        usuario: null, atividade: null, nome: '', turma: '', tentativa: 1, maximoTentativas: 1,
+        ehProfessor: false, minimoQuestoes: 0,
+    };
+    return {
+        carregar: () => carregarDoBanco(sessao),
+        montarIdentificacao: () => montarIdentificacaoBanco(sessao),
+        podeResponder() {
+            if (sessao.ehProfessor) {
+                mostrarPopup(MSG_PROFESSOR_NAO_ASSINA, { tipo: 'aviso' });
+                return false;
+            }
+            if (sessao.usuario) return true;
+            irParaLogin();
+            return false;
+        },
+        async salvarResposta(numero, letra) {
+            const corpo = {
+                aluno_id: sessao.usuario.id,
+                atividade_id: sessao.atividade.id,
+                tentativa: sessao.tentativa,
+                item: Number(numero),
+                letra,
+            };
+            const resposta = await enviarAoBanco(ROTA_RESPOSTAS, corpo, PREFERENCIA_UPSERT);
+            if (!resposta.ok) {
+                const motivo = (await explicarForaDoHorario(sessao.atividade.id))
+                    || (await explicarBloqueioAtividade(sessao.atividade.id));
+                throw new Error(motivo || MSG_ERRO_SALVAR);
+            }
+        },
+        async lerGravadas() {
+            const filtro = 'atividade_id=eq.' + sessao.atividade.id +
+                '&tentativa=eq.' + sessao.tentativa + '&aluno_id=eq.' + sessao.usuario.id;
+            const linhas = await sbGet('resposta_atividade', 'select=item,letra&' + filtro);
+            const gravadas = {};
+            linhas.forEach((linha) => { gravadas[formatarNumeroItem(linha.item)] = linha.letra; });
+            return gravadas;
+        },
+        async entregar() {
+            const corpo = {
+                aluno_id: sessao.usuario.id,
+                atividade_id: sessao.atividade.id,
+                tentativa: sessao.tentativa,
+            };
+            const resposta = await enviarAoBanco(ROTA_ENTREGAS, corpo, 'return=representation');
+            const jaEntregue = resposta.status === CODIGO_JA_EXISTE;
+            if (jaEntregue) {
+                const resultado = await lerResultadoDaTentativa(sessao.atividade.id,
+                    sessao.tentativa);
+                return { entregueEm: new Date().toISOString(), tentativa: sessao.tentativa,
+                    resultado };
+            }
+            if (!resposta.ok) throw new Error(await explicarFalhaEntrega(sessao));
+            const [entrega] = await resposta.json();
+            const resultado = await lerResultadoDaTentativa(sessao.atividade.id, sessao.tentativa);
+            return { entregueEm: entrega?.entregue_em, tentativa: sessao.tentativa, resultado };
+        },
+    };
+}
+
+window.criarProvedorRespostasBanco = criarProvedorRespostasBanco;

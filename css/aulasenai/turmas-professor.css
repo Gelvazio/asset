@@ -1,0 +1,172 @@
+/* Página turmas.html — CRUD da turma e da turmaprofessor (complementa criar-usuarios-comando.css) */
+:root {
+    --tp-espaco: 12px;
+    --tp-cinza: #4a5568;
+    --tp-perigo: #b42318;
+    --tp-fundo-edicao: #eef4fb;
+    --tp-fundo-desistente: #f3f4f6;
+    --tp-largura-pagina: min(1600px, 96vw);
+}
+
+/* Página mais larga que o padrão .guia (900px), para a tabela de turmas caber (#201.5) */
+.guia.guia--larga { max-width: var(--tp-largura-pagina); }
+
+.tp-formulario {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+    gap: var(--tp-espaco);
+    align-items: end;
+}
+
+/* Campo = rótulo em cima e lista embaixo; min-width: 0 impede a lista de opções longas
+   (com a unidade da turma) de passar por cima do campo vizinho. */
+.tp-campo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    font-weight: 600;
+    color: var(--guia-texto);
+}
+
+.tp-campo .guia-filtro {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px 10px;
+    font-weight: 400;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 760px) {
+    .tp-formulario { grid-template-columns: minmax(0, 1fr); }
+}
+
+.tp-campo--filtro { min-width: 240px; }
+
+.tp-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.tp-botao-secundario {
+    background: #fff;
+    color: var(--guia-azul);
+    border: 1px solid var(--guia-azul);
+}
+
+.tp-botao-perigo { background: var(--tp-perigo); }
+
+.tp-botao-pequeno { padding: 4px 10px; font-size: 13px; }
+
+.tp-cabecalho-lista {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: end;
+    gap: var(--tp-espaco);
+}
+
+.tp-resumo { color: var(--tp-cinza); margin: 8px 0; }
+
+.tp-tabela-rolagem { overflow-x: auto; }
+
+.tp-detalhe { display: block; color: var(--tp-cinza); font-size: 12px; }
+
+.tp-linha--editando { background: var(--tp-fundo-edicao); }
+
+.tp-linha--desistente { background: var(--tp-fundo-desistente); color: var(--tp-cinza); }
+
+.tp-selo-desistente {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--tp-perigo);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.tp-celula-acoes { white-space: nowrap; }
+
+.tp-celula-acoes .guia-botao + .guia-botao { margin-left: 6px; }
+
+.tp-vazio { text-align: center; color: var(--tp-cinza); }
+
+/* Tabela de turmas + etiquetas dos professores vinculados (turmas-professor-pagina.js) */
+.tp-lista-professores { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.tp-professor {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 4px 2px 10px;
+    border: 1px solid var(--guia-borda);
+    border-radius: 999px;
+    background: var(--guia-fundo);
+    font-size: 13px;
+}
+.tp-botao-icone { border: none; background: transparent; padding: 2px 4px; cursor: pointer; opacity: 0.7; }
+.tp-botao-icone:hover { opacity: 1; }
+
+/* Modais da página (turmas-professor-modais.js); ficam abaixo do popup (z-index 10000) */
+.tp-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.45);
+}
+.tp-modal[hidden] { display: none; }
+.tp-modal__caixa {
+    display: grid;
+    gap: var(--tp-espaco);
+    width: min(560px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 20px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+.tp-modal__caixa h2 { color: var(--guia-azul); font-size: 18px; }
+.tp-modal__subtitulo { color: var(--tp-cinza); font-size: 14px; }
+
+/* Modal dos dados da turma (turmas-dados-modal.js, #201) */
+.tp-modal__caixa--largo { width: min(720px, 100%); }
+.tp-grade-campos {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--tp-espaco);
+}
+.tp-campo--largo { grid-column: 1 / -1; }
+.tp-campo--marcar {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    font-weight: 400;
+}
+.tp-campo .guia-filtro:disabled { background: var(--guia-fundo); color: var(--tp-cinza); }
+.tp-acoes--fim { align-items: end; }
+
+@media (max-width: 760px) {
+    .tp-grade-campos { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Cabeçalho azul com o menu de cadastros à direita (botão 📚 Matérias, #211) */
+.tp-cabecalho-pagina {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--tp-espaco);
+}
+
+.tp-menu-cabecalho { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.tp-botao-cabecalho {
+    background: #fff;
+    color: var(--guia-azul);
+    font-weight: 700;
+}

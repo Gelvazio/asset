@@ -1,0 +1,106 @@
+/* Slides HTML das aulas (um slide por <section class="slide">). Navegação em assets/js/slides-aula.js.
+   Tokens em :root; componentes usam os tokens. Impressão: todos os slides, um por página. */
+:root {
+  --slide-cor-primaria: #0055b3;
+  --slide-cor-primaria-escura: #003d7a;
+  --slide-cor-destaque: #008ad1;
+  --slide-cor-texto: #1b2a3a;
+  --slide-cor-fundo: #ffffff;
+  --slide-cor-suave: #eaf3fb;
+  --slide-cor-alerta: #fff3cd;
+  --slide-largura: 1280px;
+  --slide-altura: 720px;
+  --slide-altura-controles: 4rem;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Century Gothic", "Segoe UI", Arial, sans-serif;
+  background: var(--slide-cor-primaria-escura);
+  color: var(--slide-cor-texto);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.palco { width: min(96vw, calc((100vh - var(--slide-altura-controles)) * 16 / 9)); aspect-ratio: 16 / 9; position: relative; }
+
+.slide {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: var(--slide-cor-fundo);
+  border-radius: 10px;
+  padding: 3.2% 5% 4% 7%;
+  overflow: hidden;
+  font-size: clamp(14px, 1.9vw, 26px);
+  line-height: 1.4;
+}
+
+.slide--ativo { display: flex; flex-direction: column; }
+
+.slide::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2.2%;
+  background: linear-gradient(180deg, var(--slide-cor-primaria), var(--slide-cor-destaque));
+}
+
+.slide__rotulo { font-size: 0.55em; color: var(--slide-cor-destaque); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.slide__titulo { color: var(--slide-cor-primaria); font-size: 1.5em; margin: 0.15em 0 0.5em; line-height: 1.15; }
+.slide__corpo { flex: 1; overflow: hidden; }
+
+.slide--capa { justify-content: center; background: linear-gradient(135deg, var(--slide-cor-primaria), var(--slide-cor-primaria-escura)); color: #fff; }
+.slide--capa .slide__titulo { color: #fff; font-size: 2.3em; }
+.slide--capa .slide__rotulo { color: #bfe4f8; }
+.slide--capa::before { background: var(--slide-cor-destaque); }
+.slide__sub { font-size: 0.9em; opacity: 0.92; margin-top: 0.4em; }
+
+.slide ul { padding-left: 1.2em; }
+.slide li { margin: 0.25em 0; }
+.slide ol { padding-left: 1.4em; }
+.slide li::marker { color: var(--slide-cor-destaque); }
+
+.cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(12em, 1fr)); gap: 0.6em; }
+.cartao { background: var(--slide-cor-suave); border-left: 0.25em solid var(--slide-cor-destaque); border-radius: 6px; padding: 0.5em 0.7em; }
+.cartao strong { color: var(--slide-cor-primaria); display: block; }
+.cartao small { display: block; font-size: 0.7em; opacity: 0.85; }
+
+.slide table { border-collapse: collapse; width: 100%; font-size: 0.72em; }
+.slide th { background: var(--slide-cor-primaria); color: #fff; text-align: left; padding: 0.35em 0.5em; }
+.slide td { border-bottom: 1px solid #c9d9e8; padding: 0.3em 0.5em; vertical-align: top; }
+.slide tr:nth-child(even) td { background: var(--slide-cor-suave); }
+
+.destaque { background: var(--slide-cor-alerta); border-left: 0.3em solid #e0a800; border-radius: 6px; padding: 0.5em 0.8em; margin-top: 0.6em; }
+.codigo { font-family: Consolas, "Courier New", monospace; background: #0d1b2a; color: #d8ecff; border-radius: 6px; padding: 0.5em 0.8em; font-size: 0.72em; margin: 0.4em 0; white-space: pre-wrap; }
+
+/* Foto de cada slide (etapa ADICAO-FOTO-POR-SLIDE, assets/gerador-slides/): imagem da Pixabay, baixada
+   para AULAS/FOTOS/. O slide com foto ganha a classe slide--com-foto e o texto fica na coluna da esquerda. */
+.slide--com-foto .slide__corpo { width: 64%; }
+.slide__figura { position: absolute; top: 17%; right: 4%; width: 28%; }
+.slide__foto { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; }
+.slide__credito { font-size: 0.4em; opacity: 0.75; margin-top: 0.3em; text-align: right; }
+.slide__credito a { color: inherit; }
+.slide--capa.slide--com-foto .slide__titulo,
+.slide--capa.slide--com-foto .slide__rotulo,
+.slide--capa.slide--com-foto .slide__sub { max-width: 58%; }
+.slide--capa .slide__figura { top: 50%; transform: translateY(-50%); width: 34%; }
+
+.slide__rodape { position: absolute; bottom: 1.5%; right: 3%; font-size: 0.5em; opacity: 0.6; }
+
+.controles { display: flex; gap: 0.6rem; align-items: center; margin-top: 0.6rem; color: #fff; font-size: 0.9rem; }
+.controles button { background: var(--slide-cor-destaque); color: #fff; border: 0; border-radius: 6px; padding: 0.35rem 0.9rem; cursor: pointer; font-size: 0.9rem; }
+.controles button:hover { background: #0aa0f0; }
+.controles button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+@media print {
+  body { background: #fff; display: block; height: auto; overflow: visible; }
+  .controles { display: none; }
+  .palco { width: 100%; aspect-ratio: auto; }
+  .slide { display: flex !important; flex-direction: column; position: relative; height: 100vh; page-break-after: always; border-radius: 0; }
+}

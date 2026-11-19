@@ -1,0 +1,69 @@
+/* Página recuperacao.html — alunos em recuperação (prefixo rc-). Usa os tokens do tema
+   (--text, --panel, --line, --acc) com valores padrão para funcionar sem tema. */
+
+:root {
+    --rc-texto: var(--text, #1a202c);
+    --rc-suave: #5a6b85;
+    --rc-painel: var(--panel, #ffffff);
+    --rc-linha: var(--line, #d5dbe8);
+    --rc-destaque: var(--acc, #4a5ad8);
+}
+
+.rc-corpo { margin: 0; min-height: 100vh; color: var(--rc-texto); }
+.rc-pagina { max-width: 1200px; margin: 0 auto; padding: 24px 16px 56px; }
+
+.rc-cabecalho { text-align: center; margin-bottom: 20px; }
+.rc-titulo { margin: 6px 0; font-size: clamp(1.4rem, 3.5vw, 2.1rem); color: var(--rc-destaque); }
+.rc-subtitulo { margin: 0; color: var(--rc-suave); }
+
+.rc-cartao {
+    background: var(--rc-painel);
+    border: 1px solid var(--rc-linha);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+.rc-bloqueio { text-align: center; font-weight: 600; }
+
+.rc-filtros { display: flex; flex-wrap: wrap; gap: 14px; }
+.rc-campo { display: grid; gap: 4px; flex: 1 1 260px; font-weight: 600; }
+.rc-seletor {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--rc-linha);
+    border-radius: 8px;
+    background: #fff;
+    color: #1a202c;
+    font: inherit;
+}
+.rc-resumo { margin: 12px 0 0; color: var(--rc-suave); font-weight: 600; }
+
+.rc-botao {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 9px 18px;
+    border-radius: 8px;
+    background: var(--rc-destaque);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.rc-tabela-area { overflow-x: auto; padding: 0; }
+.rc-tabela { width: 100%; border-collapse: collapse; min-width: 320px; }
+.rc-tabela th,
+.rc-tabela td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--rc-linha); }
+.rc-tabela th {
+    position: sticky;
+    top: 0;
+    background: var(--rc-destaque);
+    color: #fff;
+    white-space: nowrap;
+}
+.rc-tabela tbody tr:hover { background: rgba(0, 0, 0, 0.04); }
+/* Fundo por tipo: verde claro = prova objetiva; amarelo claro = prova prática e atividades. */
+.rc-tabela tbody tr.rc-linha--verde td { background: #e3f6e3; color: #1a202c; }
+.rc-tabela tbody tr.rc-linha--amarela td { background: #fff8c9; color: #1a202c; }
+.rc-tabela tbody tr.rc-linha--verde:hover td { background: #cfeccf; }
+.rc-tabela tbody tr.rc-linha--amarela:hover td { background: #fff0a0; }
+.rc-tabela td:first-child { font-weight: 700; }

@@ -1,0 +1,1046 @@
+// Relatório do professor dentro da página da atividade (carregado só para perfil PROFESSOR):
+// lista os alunos que responderam, com tentativa, nota e data/hora, e o botão de liberar nova
+// tentativa ao lado de cada aluno. Depende de respostas-atividade.js (criarElemento, popup,
+// calcularNota, formatarNota...) e do provedor do banco (enviarAoBanco). O limite de tentativas
+// vem do banco (atividade.max_tentativas) e chega por parâmetro. A nota de cada linha usa a
+// quantidade para a nota (questoes_nota_aluno, senão o mínimo); só a nota, não a entrega.
+// Os dados vêm da função resumo_tentativas_atividade (só o professor chama; o gabarito não sai do
+// banco). Plano: docs/regra-3-tentativas-atividade.md.
+
+const ROTA_RESUMO_TENTATIVAS = '/rest/v1/rpc/resumo_tentativas_atividade';
+const ROTA_LIBERAR_TENTATIVA = '/rest/v1/rpc/liberar_nova_tentativa';
+const CLASSE_RELATORIO = 'relatorio-professor';
+const COLUNAS_ALUNOS_RELATORIO = ['Nº', 'Aluno', 'Fez Atividade?', 'Status', 'Tentativas',
+    'Nota', 'Ações'];
+const COLUNAS_RELATORIO = ['Tentativa', 'Situação', 'Acertos', 'Nota', 'Abriu em',
+    'Última alteração', 'Entregue em', 'Tempo gasto'];
+const TURMA_SEM_CODIGO = '';
+const MAXIMO_TENTATIVAS_APROVADO = 2;
+const CLASSE_ABA_ATIVA = CLASSE_RELATORIO + '__aba--ativa';
+let turmaEscolhidaRelatorio = null;
+let filtroAlunoRelatorio = '';
+let atividadeAtualRelatorio = null;
+let mostrarNotasGlobalRelatorio = false;
+let filtroSoNaoAtingiuRelatorio = true;
+const filtroFezRelatorio = new Set(['sim']);
+const filtroStatusRelatorio = new Set();
+const filtroTentativasRelatorio = new Set();
+const CLASSE_PERGUNTAS_OCULTAS = 'atividade--perguntas-ocultas';
+const TEXTO_STATUS = { entregue: '📨 Entregue', andamento: '✏️ Andamento',
+    professor: '📨 Entregue pelo professor' };
+const TEXTO_SELECIONE_ALUNO = 'Seleciona o aluno';
+const CLASSE_CONFERENCIA_CERTA = 'conferencia--certa';
+const CLASSE_CONFERENCIA_ERRADA = 'conferencia--errada';
+const CLASSE_NOTA_CONFERENCIA = 'conferencia-resposta';
+const QUANTIDADES_TENTATIVAS = ['1', '2', '3'];
+const CLASSE_NOTAS_OCULTAS = CLASSE_RELATORIO + '__aluno--notas-ocultas';
+const CLASSE_ABAIXO_MINIMO = CLASSE_RELATORIO + '__aluno--abaixo-minimo';
+const MSG_SEM_RESPOSTAS = 'Nenhum aluno respondeu esta atividade ainda.';
+const MSG_ERRO_RELATORIO = 'Não foi possível carregar as respostas dos alunos: ';
+const MSG_ERRO_LIBERAR = 'Não foi possível liberar a ';
+
+/**
+ * Busca no banco uma linha por aluno e tentativa (acertos e total já calculados lá).
+ * @param {number} atividadeId - Id da atividade.
+ * @returns {Promise<Object[]>} Linhas do resumo, ordenadas por turma, número e tentativa.
+ * @throws {Error} Se o banco recusar (ex.: usuário não é professor).
+ */
+async function buscarResumoTentativas(atividadeId) {
+    const resposta = await enviarAoBanco(ROTA_RESUMO_TENTATIVAS,
+        { p_atividade: atividadeId }, 'return=representation');
+    if (!resposta.ok) {
+        const erro = await resposta.json().catch(() => ({}));
+        throw new Error(erro.message || resposta.status);
+    }
+    // Desistente some do relatório, da tabela de notas e do PDF (helper único, js/supabase.js).
+    return filtrarDesistentes(await resposta.json(), { campoTurma: 'turma_codigo' });
+}
+
+/**
+ * Acrescenta a cada linha do resumo a hora em que o aluno abriu aquela tentativa.
+ * Sem a tabela de aberturas (ou sem registro), a linha fica sem aberta_em.
+ * @param {Object[]} linhas - Linhas do resumo.
+ * @param {number} atividadeId - Id da atividade.
+ * @returns {Promise<Object[]>} Linhas com aberta_em.
+ */
+async function acrescentarAberturas(linhas, atividadeId) {
+    try {
+        const aberturas = await sbGet('abertura_atividade',
+            'select=aluno_id,tentativa,aberta_em&atividade_id=eq.' + atividadeId);
+        const porChave = new Map(aberturas.map((abertura) =>
+            [abertura.aluno_id + '|' + abertura.tentativa, abertura.aberta_em]));
+        return linhas.map((linha) =>
+            ({ ...linha, aberta_em: porChave.get(linha.aluno_id + '|' + linha.tentativa) }));
+    } catch (erro) {
+        return linhas;
+    }
+}
+
+/**
+ * Acrescenta a cada linha a quantidade de questões que conta para a NOTA do aluno (a definida
+ * pelo professor em questoes_nota_aluno, senão o mínimo dele, senão o da atividade, senão todas;
+ * no máximo o total), como a função questoes_para_nota do banco. Sem conseguir ler, a linha fica
+ * sem quantidade e a nota continua sobre o total.
+ * @param {Object[]} linhas - Linhas do resumo.
+ * @param {number} atividadeId - Id da atividade.
+ * @returns {Promise<Object[]>} Linhas com questoesNota.
+ */
+async function acrescentarQuestoesNota(linhas, atividadeId) {
+    try {
+        const filtro = 'atividade_id=eq.' + atividadeId;
+        const [minimos, atividades, definidas] = await Promise.all([
+            sbGet('minimo_questoes_aluno', 'select=aluno_id,minimo&' + filtro),
+            sbGet('atividade', 'select=minimo_questoes_entrega&id=eq.' + atividadeId),
+            sbGet('questoes_nota_aluno', 'select=aluno_id,quantidade&' + filtro),
+        ]);
+        const minimoPorAluno = new Map(minimos.map((linha) => [linha.aluno_id, linha.minimo]));
+        const notaPorAluno = new Map(definidas.map((linha) => [linha.aluno_id, linha.quantidade]));
+        const padrao = atividades[0]?.minimo_questoes_entrega || null;
+        return linhas.map((linha) => {
+            const quantidade = notaPorAluno.get(linha.aluno_id) ||
+                minimoPorAluno.get(linha.aluno_id) || padrao || linha.total;
+            return { ...linha, questoesNota: Math.min(quantidade, linha.total) };
+        });
+    } catch (erro) {
+        return linhas;
+    }
+}
+
+/**
+ * Formata data e hora para exibição (dd/mm/aaaa hh:mm:ss).
+ * @param {string|null} dataIso - Data ISO ou vazio.
+ * @returns {string} Data e hora formatadas ou "—".
+ */
+function formatarDataHora(dataIso) {
+    return dataIso ? new Date(dataIso).toLocaleString('pt-BR') : '—';
+}
+
+/**
+ * Descreve a situação de uma tentativa.
+ * @param {Object} linha - Linha do resumo.
+ * @returns {string} Texto da situação.
+ */
+function descreverSituacao(linha) {
+    if (linha.entregue_por) return 'Entregue pelo professor';
+    if (linha.entregue_em) return 'Entregue';
+
+    return 'Em andamento (' + linha.respondidas + '/' + linha.total + ')';
+}
+
+/**
+ * Calcula o tempo entre a abertura e a entrega da tentativa.
+ * @param {Object} linha - Linha do resumo (com aberta_em e entregue_em).
+ * @returns {string} Tempo no formato "1h 05min 09s" ou "—" se faltar alguma das horas.
+ */
+function calcularTempoGasto(linha) {
+    if (!linha.aberta_em || !linha.entregue_em) return '—';
+
+    const segundos = Math.max(0, Math.round(
+        (new Date(linha.entregue_em) - new Date(linha.aberta_em)) / 1000));
+    const horas = Math.floor(segundos / 3600);
+    const minutos = Math.floor((segundos % 3600) / 60);
+    const resto = segundos % 60;
+    const partes = [horas ? horas + 'h' : '', (horas || minutos) ? minutos + 'min' : '',
+        resto + 's'];
+    return partes.filter(Boolean).join(' ');
+}
+
+/**
+ * Cria uma célula de texto do relatório.
+ * @param {string|number} texto - Conteúdo da célula.
+ * @param {string} [classe] - Classe CSS extra.
+ * @returns {HTMLTableCellElement} Célula pronta.
+ */
+function criarCelulaRelatorio(texto, classe) {
+    return criarElemento('td', classe || '', String(texto));
+}
+
+/**
+ * Libera a próxima tentativa do aluno (confirma em popup, chama o banco e recarrega a lista).
+ * @param {Object} contexto - {secao, atividadeId, linha} com a linha da última tentativa.
+ */
+async function liberarTentativaDoAluno(contexto) {
+    const { linha, atividadeId, maximo } = contexto;
+    const proxima = linha.tentativa + 1;
+    const termos = termosTentativa();
+    const rotuloProxima = termos.rotulo(proxima, maximo);
+    const querLiberar = await confirmarPopup('Liberar a ' + rotuloProxima + ' para ' +
+        linha.nome + '?\n\nSó as questões erradas ou em branco ' +
+        'voltam para o aluno; as acertadas ficam mantidas.',
+    { titulo: 'Liberar ' + termos.nova, textoConfirmar: 'Liberar', textoCancelar: 'Cancelar' });
+    if (!querLiberar) return;
+
+    const resposta = await enviarAoBanco(ROTA_LIBERAR_TENTATIVA,
+        { p_aluno: linha.aluno_id, p_atividade: atividadeId }, 'return=representation');
+    if (!resposta.ok) {
+        const erro = await resposta.json().catch(() => ({}));
+        return mostrarPopup(MSG_ERRO_LIBERAR + termos.nova + ': ' +
+            (erro.message || resposta.status), { tipo: 'erro' });
+    }
+    await mostrarPopup(maiusculaInicial(rotuloProxima) + ' liberada para ' + linha.nome + '.',
+        { tipo: 'sucesso', titulo: maiusculaInicial(termos.nova) + ' liberada' });
+    await montarRelatorioProfessor(contexto.secao, atividadeId, maximo);
+}
+
+/**
+ * Define quantas tentativas o aluno pode ter: quem atingiu a nota mínima pode refazer uma vez
+ * para melhorar (2 no total); quem ficou abaixo tem até o máximo da atividade (3). Nas
+ * avaliações, quem atingiu a nota mínima não tem recuperação (1 no total).
+ * @param {number|null} notaFinal - Maior nota entregue do aluno.
+ * @param {number} maximo - Limite geral de tentativas.
+ * @returns {number} Total de tentativas permitido.
+ */
+function calcularLimiteTentativas(notaFinal, maximo) {
+    const aprovado = notaFinal !== null && notaFinal >= NOTA_MINIMA_APROVACAO;
+    if (!aprovado) return maximo;
+    if (!termosTentativa().aprovadoPodeRefazer) return 1;
+    return Math.min(MAXIMO_TENTATIVAS_APROVADO, maximo);
+}
+
+/**
+ * Cria o controle "Nova tentativa" do aluno (ao lado da nota final): botão de liberar (só na última tentativa entregue
+ * do aluno e abaixo do limite) ou o motivo de não poder liberar.
+ * @param {Object} contexto - {secao, atividadeId, linha, ehUltima}.
+ * @returns {HTMLElement} Elemento da ação.
+ */
+function criarControleLiberar(contexto) {
+    const { linha, maximo, notaFinal } = contexto;
+    const celula = criarElemento('span', CLASSE_RELATORIO + '__acao');
+    if (!linha.entregue_em) {
+        celula.textContent = 'Aguardando a entrega';
+        acrescentarEntregaProfessor(celula, contexto);
+        acrescentarBotaoEntregarAndamento(celula, contexto);
+        return celula;
+    }
+    const limite = calcularLimiteTentativas(notaFinal, maximo);
+    const termos = termosTentativa();
+    const botao = criarBotao('btn-export ' + CLASSE_RELATORIO + '__liberar',
+        '🔓 ' + termos.nova.charAt(0).toUpperCase() + termos.nova.slice(1),
+        () => liberarTentativaDoAluno(contexto));
+    botao.disabled = linha.tentativa >= limite;
+    if (botao.disabled) botao.title = 'Sem ' + termos.nova + ' disponível para este aluno.';
+    celula.appendChild(botao);
+    acrescentarEntregaProfessor(celula, contexto);
+    return celula;
+}
+
+/**
+ * Acrescenta à célula o "Marcar como entregue" / "Desfazer entrega" (marcar-entregue-
+ * professor.js).
+ * @param {HTMLElement} celula - Célula de ações.
+ * @param {Object} contexto - {secao, atividadeId, maximo, linha}.
+ */
+function acrescentarEntregaProfessor(celula, contexto) {
+    const { secao, atividadeId, maximo } = contexto;
+    window.acrescentarControleEntrega?.(celula, { linha: contexto.linha, atividadeId,
+        aoMudar: () => montarRelatorioProfessor(secao, atividadeId, maximo) });
+}
+
+/**
+ * Acrescenta o botão "Entregar" ao aluno em Andamento (marcar-entregue-professor.js).
+ * @param {HTMLElement} celula - Célula de ações.
+ * @param {Object} contexto - {secao, atividadeId, maximo, linha}.
+ */
+function acrescentarBotaoEntregarAndamento(celula, contexto) {
+    const { secao, atividadeId, maximo } = contexto;
+    window.acrescentarBotaoEntregar?.(celula, { linha: contexto.linha, atividadeId,
+        aoMudar: () => montarRelatorioProfessor(secao, atividadeId, maximo) });
+}
+
+/**
+ * Monta a linha da tabela para uma tentativa de um aluno.
+ * @param {Object} contexto - {secao, atividadeId, linha, ehUltima}.
+ * @returns {HTMLTableRowElement} Linha da tabela.
+ */
+function montarLinhaRelatorio(contexto) {
+    const { linha, maximo } = contexto;
+    const nota = calcularNota({ acertos: linha.acertos, total: linha.total,
+        questoesNota: linha.questoesNota });
+    const abaixoDoMinimo = linha.entregue_em && nota < NOTA_MINIMA_APROVACAO;
+    const tr = document.createElement('tr');
+    tr.append(
+        criarCelulaRelatorio(maiusculaInicial(termosTentativa().rotulo(linha.tentativa, maximo))),
+        criarCelulaRelatorio(descreverSituacao(linha)),
+        criarCelulaRelatorio(linha.entregue_em ? linha.acertos + ' de ' + linha.total : '—'),
+        criarCelulaRelatorio(linha.entregue_em ? formatarNota(nota) : '—',
+            abaixoDoMinimo ? CLASSE_RELATORIO + '__nota--baixa' : ''),
+        criarCelulaRelatorio(formatarDataHora(linha.aberta_em)),
+        criarCelulaRelatorio(formatarDataHora(linha.ultima_gravacao)),
+        criarCelulaRelatorio(formatarDataHora(linha.entregue_em)),
+        criarCelulaRelatorio(calcularTempoGasto(linha)),
+    );
+    return tr;
+}
+
+/**
+ * Calcula a maior nota entre as tentativas entregues de um aluno.
+ * @param {Object[]} tentativas - Linhas do resumo do aluno.
+ * @returns {number|null} Maior nota ou null se nenhuma tentativa foi entregue.
+ */
+function calcularNotaFinalAluno(tentativas) {
+    const notas = tentativas.filter((linha) => linha.entregue_em)
+        .map((linha) => calcularNota({ acertos: linha.acertos, total: linha.total,
+            questoesNota: linha.questoesNota }));
+    return notas.length ? Math.max(...notas) : null;
+}
+
+/**
+ * Mostra ou esconde as notas de um aluno (padrão: escondidas).
+ * @param {HTMLElement} bloco - Bloco do aluno.
+ */
+function alternarNotasAluno(bloco) {
+    definirNotasAluno(bloco, bloco.classList.contains(CLASSE_NOTAS_OCULTAS));
+}
+
+/**
+ * Mostra ou esconde as notas de um aluno e ajusta o texto do botão.
+ * @param {HTMLElement} bloco - Bloco do aluno.
+ * @param {boolean} visiveis - true para mostrar as notas.
+ */
+function definirNotasAluno(bloco, visiveis) {
+    bloco.classList.toggle(CLASSE_NOTAS_OCULTAS, !visiveis);
+    const botao = bloco.querySelector('.' + CLASSE_RELATORIO + '__ver-notas');
+    if (botao) botao.textContent = visiveis ? 'Ocultar' : 'Notas';
+}
+
+/**
+ * Aplica o filtro global "Visualizar Notas" a todos os alunos do relatório.
+ * @param {HTMLElement} raiz - Cartão do relatório.
+ */
+function aplicarNotasGlobais(raiz) {
+    raiz.querySelectorAll('.' + CLASSE_RELATORIO + '__aluno')
+        .forEach((bloco) => definirNotasAluno(bloco, mostrarNotasGlobalRelatorio));
+}
+
+/**
+ * Diz se o bloco do aluno passa pelos filtros de turma, situação e tentativas.
+ * @param {HTMLElement} bloco - Bloco do aluno.
+ * @param {string} turma - Código da turma escolhida.
+ * @returns {boolean} true se deve aparecer.
+ */
+function passaNosFiltros(bloco, turma) {
+    if (bloco.dataset.turma !== turma) return false;
+    if (filtroAlunoRelatorio && bloco.dataset.aluno !== filtroAlunoRelatorio) return false;
+    if (filtroSoNaoAtingiuRelatorio && bloco.dataset.naoAtingiu !== 'true') return false;
+    const filtraStatus = filtroStatusRelatorio.size > 0;
+    if (filtraStatus && !filtroStatusRelatorio.has(bloco.dataset.status)) return false;
+    const escolheuSoUmaOpcaoFez = filtroFezRelatorio.size === 1;
+    if (escolheuSoUmaOpcaoFez && !filtroFezRelatorio.has(bloco.dataset.fez)) return false;
+    const semFiltroTentativas = filtroTentativasRelatorio.size === 0;
+    return semFiltroTentativas || filtroTentativasRelatorio.has(bloco.dataset.tentativas);
+}
+
+/**
+ * Cria a tabela de tentativas de um aluno (mostrada só ao clicar em Notas).
+ * @param {Object[]} tentativas - Linhas do resumo do aluno.
+ * @param {Object} base - {secao, atividadeId, maximo}.
+ * @returns {HTMLElement} Linha de detalhe com a tabela aninhada.
+ */
+function montarDetalheAluno(tentativas, base) {
+    const tabela = criarElemento('table', CLASSE_RELATORIO + '__tabela-tentativas');
+    const cabecalho = tabela.createTHead().insertRow();
+    [termosTentativa().colunaEtapa, ...COLUNAS_RELATORIO.slice(1)]
+        .forEach((texto) => cabecalho.appendChild(criarElemento('th', '', texto)));
+    const corpo = tabela.createTBody();
+    tentativas.forEach((linha) => corpo.appendChild(montarLinhaRelatorio({ ...base, linha })));
+    const detalhe = criarElemento('tr', CLASSE_RELATORIO + '__detalhe');
+    const celula = criarElemento('td');
+    celula.colSpan = COLUNAS_ALUNOS_RELATORIO.length;
+    celula.appendChild(tabela);
+    detalhe.appendChild(celula);
+    return detalhe;
+}
+
+/**
+ * Cria a célula de ações do aluno: Notas e Recuperação (ou Nova tentativa).
+ * @param {HTMLElement} bloco - Bloco (tbody) do aluno.
+ * @param {Object[]} tentativas - Linhas do resumo do aluno.
+ * @param {Object} base - {secao, atividadeId, maximo, notaFinal}.
+ * @returns {HTMLTableCellElement} Célula de ações.
+ */
+function criarCelulaAcoesAluno(bloco, tentativas, base) {
+    const celula = criarElemento('td');
+    const grupo = criarElemento('div', CLASSE_RELATORIO + '__acoes');
+    grupo.append(criarBotao('btn-export ' + CLASSE_RELATORIO + '__ver-notas',
+        'Notas', () => alternarNotasAluno(bloco)),
+    criarControleLiberar({ ...base, linha: tentativas[tentativas.length - 1] }),
+    criarBotao('btn-export ' + CLASSE_RELATORIO + '__carregar-respostas', 'Respostas',
+        () => carregarRespostasDoAluno(tentativas[0].aluno_id, tentativas[0].nome || '')));
+    celula.appendChild(grupo);
+    return celula;
+}
+
+/**
+ * Monta o bloco (tbody) de um aluno: uma linha com colunas retas e, escondida, a linha de
+ * detalhe com as tentativas e suas notas.
+ * @param {Object[]} tentativas - Linhas do resumo do aluno, em ordem de tentativa.
+ * @param {{secao: HTMLElement, atividadeId: number, maximo: number}} base - Seção, atividade
+ *     e limite de tentativas.
+ * @returns {HTMLElement} Bloco do aluno.
+ */
+function montarBlocoAluno(tentativas, base) {
+    const primeira = tentativas[0];
+    const semResposta = Boolean(primeira.sem_resposta);
+    const bloco = criarElemento('tbody', CLASSE_RELATORIO + '__aluno');
+    const notaFinal = semResposta ? null : calcularNotaFinalAluno(tentativas);
+    const naoAtingiu = notaFinal === null || notaFinal < NOTA_MINIMA_APROVACAO;
+    const ultimaEntreguePeloProfessor = Boolean(tentativas[tentativas.length - 1].entregue_por);
+    Object.assign(bloco.dataset, { turma: primeira.turma_codigo || TURMA_SEM_CODIGO,
+        aluno: primeira.aluno_id, tentativas: String(semResposta ? 0 : tentativas.length),
+        naoAtingiu: String(naoAtingiu), fez: semResposta ? 'nao' : 'sim',
+        status: semResposta ? '' : (tentativas[tentativas.length - 1].entregue_em ?
+            'entregue' : 'andamento') });
+    bloco.classList.add(CLASSE_NOTAS_OCULTAS);
+    bloco.classList.toggle(CLASSE_ABAIXO_MINIMO, naoAtingiu);
+    const textoNota = notaFinal === null ? '—' : formatarNota(notaFinal);
+    const linha = document.createElement('tr');
+    const celulaNota = criarElemento('td', CLASSE_RELATORIO + '__col-nota');
+    celulaNota.append(criarElemento('span', CLASSE_RELATORIO + '__nota-final', textoNota),
+        criarElemento('span', CLASSE_RELATORIO + '__nota-oculta', '••••'));
+    linha.append(criarCelulaRelatorio(primeira.numero_chamada ?? ''),
+        criarCelulaRelatorio((primeira.nome || '(sem cadastro)') +
+            (primeira.fora_da_chamada ? ' (fora da chamada)' : '')),
+        criarCelulaRelatorio(semResposta ? '❌ Não' : '✅ Sim',
+            CLASSE_RELATORIO + (semResposta ? '__fez--nao' : '__fez--sim')),
+        criarCelulaRelatorio(ultimaEntreguePeloProfessor ? TEXTO_STATUS.professor
+            : TEXTO_STATUS[bloco.dataset.status] || '—'),
+        criarCelulaRelatorio((semResposta ? 0 : tentativas.length) + ' de ' + base.maximo),
+        celulaNota);
+    const acoes = semResposta ? criarElemento('td') :
+        criarCelulaAcoesAluno(bloco, tentativas, { ...base, notaFinal });
+    if (semResposta) acrescentarEntregaProfessor(acoes, { ...base, linha: primeira });
+    linha.appendChild(acoes);
+    bloco.appendChild(linha);
+    if (!semResposta) bloco.appendChild(montarDetalheAluno(tentativas, base));
+    return bloco;
+}
+
+/**
+ * Monta a tabela do relatório: um bloco por aluno, com colunas alinhadas.
+ * @param {Object[]} linhas - Linhas do resumo (ordenadas por aluno e tentativa).
+ * @param {{secao: HTMLElement, atividadeId: number, maximo: number}} base - Seção da página,
+ *     id da atividade e limite de tentativas.
+ * @returns {HTMLElement} Área de rolagem com a tabela pronta.
+ */
+function montarListaAlunosRelatorio(linhas, base) {
+    const porAluno = new Map();
+    const ordenadas = [...linhas].sort((a, b) =>
+        String(a.turma_codigo).localeCompare(String(b.turma_codigo)) ||
+        String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', { sensitivity: 'base' }) ||
+        (a.tentativa ?? 0) - (b.tentativa ?? 0));
+    ordenadas.forEach((linha) => {
+        const grupo = porAluno.get(linha.aluno_id) || [];
+        grupo.push(linha);
+        porAluno.set(linha.aluno_id, grupo);
+    });
+    const tabela = criarElemento('table', CLASSE_RELATORIO + '__tabela');
+    const cabecalho = tabela.createTHead().insertRow();
+    COLUNAS_ALUNOS_RELATORIO.map((texto) => (texto === 'Tentativas'
+        ? termosTentativa().colunaQuantidade : texto))
+        .forEach((texto) => cabecalho.appendChild(criarElemento('th', '', texto)));
+    porAluno.forEach((tentativas) => tabela.appendChild(montarBlocoAluno(tentativas, base)));
+    const rolagem = criarElemento('div', CLASSE_RELATORIO + '__rolagem');
+    rolagem.appendChild(tabela);
+    return rolagem;
+}
+
+/**
+ * Busca no banco unidade (tabela unidade), turno e UC das turmas (para os cartões das abas).
+ * @returns {Promise<Map<string, Object>>} Turmas por código (vazio se a consulta falhar).
+ */
+async function buscarDadosTurmas() {
+    try {
+        const turmas = await sbGet('turma', 'select=codigo,nome,turno,unidade:unidade_id(nome),' +
+            'uc,favorito,hora_inicio,hora_fim,bloquear_horario');
+        return new Map(turmas.map((turma) => [turma.codigo, turma]));
+    } catch (erro) {
+        return new Map();
+    }
+}
+
+/**
+ * Normaliza um texto para comparar nomes (sem acentos, minúsculo, sem espaços sobrando).
+ * @param {string} texto - Texto original.
+ * @returns {string} Texto normalizado.
+ */
+function normalizarTexto(texto) {
+    return String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Descobre a unidade curricular (matéria) da atividade.
+ * @param {number} atividadeId - Id da atividade.
+ * @returns {Promise<string>} Nome normalizado da UC ou vazio se não for possível descobrir.
+ */
+async function buscarUcDaAtividade(atividadeId) {
+    const linhas = await sbGet('atividade',
+        'select=aulas(materia(descricao))&id=eq.' + encodeURIComponent(atividadeId));
+    return normalizarTexto(linhas[0]?.aulas?.materia?.descricao);
+}
+
+/**
+ * Acrescenta ao resumo TODOS os alunos das turmas da UC da atividade que ainda não responderam
+ * nada (linhas marcadas sem_resposta), inclusive os fora da chamada oficial. Se não for possível
+ * descobrir a UC, usa todas as turmas. Se a consulta falhar, devolve só as linhas originais.
+ * @param {Object[]} linhas - Linhas do resumo.
+ * @param {number} atividadeId - Id da atividade.
+ * @param {Map<string, Object>} dadosTurmas - Dados das turmas por código (inclui uc).
+ * @returns {Promise<Object[]>} Linhas do resumo mais uma linha por aluno sem resposta.
+ */
+async function acrescentarAlunosSemResposta(linhas, atividadeId, dadosTurmas) {
+    try {
+        const uc = await buscarUcDaAtividade(atividadeId).catch(() => '');
+        const alunos = await sbGet('aluno', 'select=id,nome,numero_chamada,turma_codigo,' +
+            'na_chamada,desistente&order=turma_codigo,numero_chamada');
+        // Desistente (#342) some do resumo: nem com resposta nem como "sem resposta".
+        const desistentes = new Set(
+            alunos.filter((aluno) => aluno.desistente).map((aluno) => aluno.id));
+        const ativas = linhas.filter((linha) => !desistentes.has(linha.aluno_id));
+        const jaResponderam = new Set(ativas.map((linha) => linha.aluno_id));
+        const turmaDaUc = (codigo) => !uc || !dadosTurmas.has(codigo) ||
+            normalizarTexto(dadosTurmas.get(codigo).uc) === uc;
+        const faltantes = alunos
+            .filter((aluno) => !aluno.desistente && !jaResponderam.has(aluno.id) &&
+                turmaDaUc(aluno.turma_codigo))
+            .map((aluno) => ({ aluno_id: aluno.id, nome: aluno.nome,
+                numero_chamada: aluno.numero_chamada, turma_codigo: aluno.turma_codigo,
+                turma_nome: null, sem_resposta: true, fora_da_chamada: aluno.na_chamada === false }));
+        return [...ativas, ...faltantes];
+    } catch (erro) {
+        return linhas;
+    }
+}
+
+/**
+ * Lista as turmas que aparecem no relatório, com dados do cartão e a quantidade de alunos.
+ * @param {Object[]} linhas - Linhas do resumo.
+ * @param {Map<string, Object>} dadosTurmas - Local, turno e UC por código de turma.
+ * @returns {{codigo: string, nome: string, local: string, uc: string, alunos: number}[]}
+ *     Turmas em ordem de nome.
+ */
+function listarTurmasRelatorio(linhas, dadosTurmas) {
+    const turmas = new Map();
+    linhas.forEach((linha) => {
+        const codigo = linha.turma_codigo || TURMA_SEM_CODIGO;
+        const dados = dadosTurmas.get(codigo) || {};
+        const turma = turmas.get(codigo) || {
+            codigo, nome: linha.turma_nome || dados.nome || codigo || 'Sem turma', uc: dados.uc || '',
+            local: [dados.unidade?.nome, dados.turno].filter(Boolean).join(' ').toUpperCase(),
+            favorita: Boolean(dados.favorito),
+            inicio: formatarHoraTurma(dados.hora_inicio), fim: formatarHoraTurma(dados.hora_fim),
+            bloquearHorario: dados.bloquear_horario !== false,
+            alunos: new Set(),
+        };
+        turma.alunos.add(linha.aluno_id);
+        turmas.set(codigo, turma);
+    });
+    return Array.from(turmas.values())
+        .map((turma) => ({ ...turma, alunos: turma.alunos.size }))
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+/**
+ * Atualiza o resumo (alunos e entregas) conforme a turma escolhida.
+ * @param {HTMLElement} resumo - Parágrafo do resumo.
+ * @param {Object[]} linhas - Linhas do resumo (já filtradas pela turma).
+ */
+function atualizarResumoRelatorio(resumo, linhas) {
+    const respondidas = linhas.filter((linha) => !linha.sem_resposta);
+    const alunos = new Set(respondidas.map((linha) => linha.aluno_id)).size;
+    const entregas = linhas.filter((linha) => linha.entregue_em).length;
+    resumo.textContent = respondidas.length
+        ? alunos + ' aluno(s) responderam · ' + entregas + ' ' + termosTentativa().entregues + '.'
+        : MSG_SEM_RESPOSTAS;
+}
+
+/**
+ * Aplica o filtro por turma: mostra só as linhas da turma, marca o cartão e atualiza o resumo.
+ * @param {HTMLElement} bloco - Cartão do relatório.
+ * @param {Object[]} linhas - Todas as linhas do resumo.
+ * @param {string} turma - Código da turma escolhida.
+ */
+function aplicarFiltroTurmaRelatorio(bloco, linhas, turma) {
+    turmaEscolhidaRelatorio = turma;
+    atualizarAlunosSelecionaveisRelatorio(bloco, linhas, turma);
+    const idsVisiveis = new Set();
+    bloco.querySelectorAll('.' + CLASSE_RELATORIO + '__aluno').forEach((cartao) => {
+        cartao.hidden = !passaNosFiltros(cartao, turma);
+        if (!cartao.hidden) idsVisiveis.add(cartao.dataset.aluno);
+    });
+    bloco.querySelector('.' + CLASSE_RELATORIO + '__favorita')?.atualizar();
+    bloco.querySelector('.' + CLASSE_RELATORIO + '__horario')?.atualizar();
+    bloco.querySelectorAll('.' + CLASSE_RELATORIO + '__aba').forEach((aba) => {
+        const ativa = aba.dataset.turma === turma;
+        aba.classList.toggle(CLASSE_ABA_ATIVA, ativa);
+        aba.setAttribute('aria-selected', String(ativa));
+    });
+    const visiveis = linhas.filter((linha) => idsVisiveis.has(String(linha.aluno_id)));
+    atualizarResumoRelatorio(bloco.querySelector('.' + CLASSE_RELATORIO + '__resumo'), visiveis);
+    document.dispatchEvent(new CustomEvent('relatorio-professor:turma', { detail: { turma } }));
+}
+
+/**
+ * Cria um trecho de texto dentro do cartão da aba.
+ * @param {string} sufixo - Sufixo da classe (local, uc ou turma).
+ * @param {string} texto - Texto exibido.
+ * @returns {HTMLSpanElement} Trecho pronto.
+ */
+function criarTrechoAbaRelatorio(sufixo, texto) {
+    return criarElemento('span', CLASSE_RELATORIO + '__aba-' + sufixo, texto);
+}
+
+/**
+ * Monta as abas de turma como cartões (LOCAL TURNO, unidade curricular, turma e quantidade),
+ * no mesmo estilo da página de criar usuários. Não há opção "todas as turmas".
+ * @param {{codigo: string, nome: string, local: string, uc: string, alunos: number}[]} turmas
+ *     Turmas do relatório.
+ * @param {Function} aoEscolher - Chamada com o código da turma escolhida.
+ * @returns {HTMLElement} Barra de abas.
+ */
+function montarAbasTurmaRelatorio(turmas, aoEscolher) {
+    const barra = criarElemento('div', CLASSE_RELATORIO + '__abas');
+    barra.setAttribute('role', 'tablist');
+    barra.setAttribute('aria-label', 'Filtrar por turma');
+    turmas.forEach((turma) => {
+        const aba = criarBotao(CLASSE_RELATORIO + '__aba', '', () => aoEscolher(turma.codigo));
+        if (turma.favorita) aba.append(criarTrechoAbaRelatorio('uc', '⭐ Turma favorita'));
+        if (turma.local) aba.append(criarTrechoAbaRelatorio('local', turma.local));
+        if (turma.uc) aba.append(criarTrechoAbaRelatorio('uc', turma.uc));
+        aba.append(criarTrechoAbaRelatorio('turma', turma.nome + ' (' + turma.alunos + ')'));
+        aba.dataset.turma = turma.codigo;
+        aba.setAttribute('role', 'tab');
+        barra.appendChild(aba);
+    });
+    return barra;
+}
+
+/**
+ * Cria um interruptor ON/OFF (checkbox estilizado) para os filtros do relatório.
+ * @param {string} texto - Rótulo do interruptor.
+ * @param {Function} aoMudar - Chamada com true (ON) ou false (OFF).
+ * @param {boolean} [ligadoInicial] - Estado inicial do interruptor.
+ * @returns {HTMLLabelElement} Interruptor pronto.
+ */
+function criarInterruptorRelatorio(texto, aoMudar, ligadoInicial = false) {
+    const etiqueta = criarElemento('label', CLASSE_RELATORIO + '__interruptor');
+    const caixa = document.createElement('input');
+    caixa.type = 'checkbox';
+    caixa.checked = ligadoInicial;
+    caixa.addEventListener('change', () => aoMudar(caixa.checked));
+    etiqueta.append(caixa, criarElemento('span', CLASSE_RELATORIO + '__chave'),
+        criarElemento('span', CLASSE_RELATORIO + '__interruptor-texto', texto));
+    return etiqueta;
+}
+
+/**
+ * Lê o número da questão de um card pelo selo "ITEM NN".
+ * @param {HTMLElement} card - Card da questão.
+ * @returns {number} Número da questão.
+ */
+function lerNumeroDaQuestao(card) {
+    return Number((card.querySelector('.aula-badge')?.textContent.match(/\d+/) || [0])[0]);
+}
+
+/**
+ * Remove das questões as marcações de conferência de um aluno carregado antes.
+ */
+function limparConferenciaDasQuestoes() {
+    document.querySelectorAll('.' + CLASSE_NOTA_CONFERENCIA).forEach((nota) => nota.remove());
+    document.querySelectorAll('.' + CLASSE_CONFERENCIA_CERTA + ', .' + CLASSE_CONFERENCIA_ERRADA)
+        .forEach((alternativa) => alternativa.classList.remove(CLASSE_CONFERENCIA_CERTA,
+            CLASSE_CONFERENCIA_ERRADA, 'alternativa--marcada'));
+}
+
+/**
+ * Marca no card a alternativa do aluno (verde se certa, vermelha se errada) e escreve a conferência.
+ * @param {HTMLElement} card - Card da questão.
+ * @param {string} marcada - Letra marcada pelo aluno ou vazio.
+ * @param {string} certa - Letra certa (gabarito, só professor lê).
+ */
+function marcarConferenciaNaQuestao(card, marcada, certa) {
+    const acertou = marcada && marcada === certa;
+    card.querySelectorAll('.alternativas li').forEach((alternativa) => {
+        const letra = (alternativa.querySelector('.letra')?.textContent || '').replace(/\W/g, '');
+        if (letra !== marcada) return;
+
+        alternativa.classList.add('alternativa--marcada',
+            acertou ? CLASSE_CONFERENCIA_CERTA : CLASSE_CONFERENCIA_ERRADA);
+    });
+    const texto = !marcada ? '— Sem resposta (certa: ' + certa + ')'
+        : (acertou ? '✅ Aluno marcou ' + marcada + ': certa'
+            : '❌ Aluno marcou ' + marcada + ': errada (certa: ' + certa + ')');
+    card.appendChild(criarElemento('div', CLASSE_NOTA_CONFERENCIA, texto));
+}
+
+/**
+ * Liga o filtro "Mostrar Atividades" para as perguntas ficarem visíveis na conferência.
+ */
+function mostrarPerguntasParaConferencia() {
+    document.body.classList.remove(CLASSE_PERGUNTAS_OCULTAS);
+    const caixa = document.querySelector('input[data-perguntas="sim"]');
+    if (caixa) caixa.checked = true;
+}
+
+/**
+ * Busca as respostas do aluno (tentativa mais recente) e o gabarito da atividade (só professor).
+ * @param {string} alunoId - Id do aluno (auth.users.id).
+ * @returns {Promise<{tentativa: number, respostas: Map<number, string>, gabarito: Map<number, string>}>}
+ *     Dados para conferência.
+ * @throws {Error} Se o aluno não tiver respostas nesta atividade.
+ */
+async function buscarRespostasParaConferencia(alunoId) {
+    const filtro = 'atividade_id=eq.' + atividadeAtualRelatorio;
+    const [respostas, gabarito] = await Promise.all([
+        sbGet('resposta_atividade', 'select=item,letra,tentativa&' + filtro + '&aluno_id=eq.' +
+            encodeURIComponent(alunoId) + '&order=tentativa,item'),
+        sbGet('gabarito', 'select=item,letra&' + filtro + '&order=item')]);
+    if (!respostas.length) throw new Error('Este aluno ainda não respondeu esta atividade.');
+
+    const tentativa = Math.max(...respostas.map((linha) => linha.tentativa));
+    return {
+        tentativa,
+        respostas: new Map(respostas.filter((linha) => linha.tentativa === tentativa)
+            .map((linha) => [Number(linha.item), linha.letra])),
+        gabarito: new Map(gabarito.map((linha) => [Number(linha.item), linha.letra])),
+    };
+}
+
+/**
+ * Mostra as respostas de um aluno (tentativa mais recente) nas questões da página, em verde
+ * (certa) ou vermelho (errada), para o professor conferir.
+ * @param {string} alunoId - Id do aluno (auth.users.id).
+ * @param {string} nome - Nome do aluno (para a mensagem).
+ */
+async function carregarRespostasDoAluno(alunoId, nome) {
+    try {
+        const { tentativa, respostas, gabarito } = await buscarRespostasParaConferencia(alunoId);
+        limparConferenciaDasQuestoes();
+        mostrarPerguntasParaConferencia();
+        const cards = [...document.querySelectorAll('.aula-card.questao')];
+        cards.forEach((card) => {
+            const numero = lerNumeroDaQuestao(card);
+            marcarConferenciaNaQuestao(card, respostas.get(numero) || '', gabarito.get(numero) || '?');
+        });
+        cards[0]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        await mostrarPopup('Respostas de ' + nome + ' (' + termosTentativa().simples(tentativa) +
+            ') carregadas nas questões abaixo.',
+        { tipo: 'sucesso', titulo: 'Respostas carregadas' });
+    } catch (erro) {
+        await mostrarPopup(erro.message, { tipo: 'erro' });
+    }
+}
+
+/**
+ * Botão "Respostas" ao lado da lista "Aluno Selecionado": usa o aluno escolhido.
+ */
+async function carregarRespostasDoAlunoSelecionado() {
+    if (!filtroAlunoRelatorio) {
+        await mostrarPopup('Selecione um aluno em "Aluno Selecionado" antes de carregar as respostas.',
+            { tipo: 'aviso' });
+        return;
+    }
+    const nome = document.querySelector('.' + CLASSE_RELATORIO + '__aluno-selecionado')
+        ?.selectedOptions[0]?.textContent || '';
+    await carregarRespostasDoAluno(filtroAlunoRelatorio, nome);
+}
+
+/**
+ * Cria, em uma nova linha, a lista "Aluno Selecionado" (começa em "Seleciona o aluno" = todos).
+ * As opções são preenchidas por atualizarAlunosSelecionaveisRelatorio, conforme a turma.
+ * @param {Function} aoMudar - Chamada quando o aluno escolhido muda.
+ * @returns {HTMLElement} Linha com rótulo e lista.
+ */
+function criarLinhaAlunoSelecionadoRelatorio(aoMudar) {
+    const linha = criarElemento('div', CLASSE_RELATORIO + '__linha-aluno');
+    const etiqueta = criarElemento('label', CLASSE_RELATORIO + '__filtro', 'Aluno Selecionado ');
+    const lista = document.createElement('select');
+    lista.className = CLASSE_RELATORIO + '__aluno-selecionado';
+    lista.add(new Option(TEXTO_SELECIONE_ALUNO, ''));
+    lista.addEventListener('change', () => {
+        filtroAlunoRelatorio = lista.value;
+        limparConferenciaDasQuestoes();
+        aoMudar();
+    });
+    etiqueta.appendChild(lista);
+    linha.append(etiqueta, criarBotao('btn-export ' + CLASSE_RELATORIO + '__carregar-respostas',
+        'Respostas', carregarRespostasDoAlunoSelecionado));
+    return linha;
+}
+
+/**
+ * Preenche a lista "Aluno Selecionado" com os alunos da turma (ordem alfabética). Se o aluno
+ * escolhido não for da turma, volta para "Seleciona o aluno".
+ * @param {HTMLElement} bloco - Cartão do relatório.
+ * @param {Object[]} linhas - Todas as linhas do resumo.
+ * @param {string} turma - Código da turma escolhida.
+ */
+function atualizarAlunosSelecionaveisRelatorio(bloco, linhas, turma) {
+    const lista = bloco.querySelector('.' + CLASSE_RELATORIO + '__aluno-selecionado');
+    if (!lista) return;
+
+    const alunos = new Map();
+    linhas.filter((linha) => (linha.turma_codigo || TURMA_SEM_CODIGO) === turma)
+        .forEach((linha) => alunos.set(String(linha.aluno_id), linha.nome || '(sem cadastro)'));
+    lista.replaceChildren(new Option(TEXTO_SELECIONE_ALUNO, ''));
+    [...alunos.entries()].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR', { sensitivity: 'base' }))
+        .forEach(([id, nome]) => lista.add(new Option(nome, id)));
+    if (!alunos.has(filtroAlunoRelatorio)) filtroAlunoRelatorio = '';
+    lista.value = filtroAlunoRelatorio;
+}
+
+/**
+ * Monta os filtros (interruptores ON/OFF): só quem não atingiu a nota mínima e quantidade de
+ * tentativas (1, 2 ou 3; nenhum ligado mostra todos).
+ * @param {Function} aoMudar - Chamada quando qualquer filtro muda.
+ * @returns {HTMLElement} Barra de filtros.
+ */
+function montarFiltrosRelatorio(aoMudar) {
+    const barra = criarElemento('div', CLASSE_RELATORIO + '__filtros');
+    const grupoSituacao = criarElemento('div', CLASSE_RELATORIO + '__grupo-filtro');
+    grupoSituacao.append(criarElemento('strong', '', 'Situação'),
+        criarInterruptorRelatorio('Não atingiram a nota mínima', (ligado) => {
+            filtroSoNaoAtingiuRelatorio = ligado;
+            aoMudar();
+        }, filtroSoNaoAtingiuRelatorio));
+    const grupoTentativas = criarElemento('div', CLASSE_RELATORIO + '__grupo-filtro');
+    grupoTentativas.appendChild(criarElemento('strong', '', termosTentativa().colunaQuantidade));
+    QUANTIDADES_TENTATIVAS.forEach((quantidade) => {
+        grupoTentativas.appendChild(criarInterruptorRelatorio(quantidade + 'x', (ligado) => {
+            if (ligado) filtroTentativasRelatorio.add(quantidade);
+            else filtroTentativasRelatorio.delete(quantidade);
+            aoMudar();
+        }, filtroTentativasRelatorio.has(quantidade)));
+    });
+    const grupoFez = criarElemento('div', CLASSE_RELATORIO + '__grupo-filtro');
+    grupoFez.appendChild(criarElemento('strong', '', 'Fez a atividade?'));
+    [['sim', 'Sim'], ['nao', 'Não']].forEach(([valor, texto]) => {
+        grupoFez.appendChild(criarInterruptorRelatorio(texto, (ligado) => {
+            if (ligado) filtroFezRelatorio.add(valor);
+            else filtroFezRelatorio.delete(valor);
+            aoMudar();
+        }, filtroFezRelatorio.has(valor)));
+    });
+    const grupoStatus = criarElemento('div', CLASSE_RELATORIO + '__grupo-filtro');
+    grupoStatus.appendChild(criarElemento('strong', '', 'Status'));
+    [['entregue', 'Entregue'], ['andamento', 'Andamento']].forEach(([valor, texto]) => {
+        grupoStatus.appendChild(criarInterruptorRelatorio(texto, (ligado) => {
+            if (ligado) filtroStatusRelatorio.add(valor);
+            else filtroStatusRelatorio.delete(valor);
+            aoMudar();
+        }, filtroStatusRelatorio.has(valor)));
+    });
+    const grupoNotas = criarElemento('div', CLASSE_RELATORIO + '__grupo-filtro');
+    grupoNotas.appendChild(criarInterruptorRelatorio('Visualizar Notas', (ligado) => {
+        mostrarNotasGlobalRelatorio = ligado;
+        aplicarNotasGlobais(barra.closest('.' + CLASSE_RELATORIO));
+    }, mostrarNotasGlobalRelatorio));
+    barra.append(grupoNotas, grupoFez, grupoStatus, grupoSituacao, grupoTentativas,
+        criarLinhaAlunoSelecionadoRelatorio(aoMudar));
+    return barra;
+}
+
+/**
+ * Cria o interruptor "Mostrar Atividades": liga/desliga a exibição das perguntas para o
+ * professor (por padrão desligado, as perguntas ficam escondidas).
+ * @returns {HTMLElement} Interruptor pronto.
+ */
+function montarInterruptorPerguntas() {
+    const interruptor = criarInterruptorRelatorio('Mostrar Atividades', (ligado) =>
+        document.body.classList.toggle(CLASSE_PERGUNTAS_OCULTAS, !ligado));
+    const caixa = interruptor.querySelector('input');
+    caixa.dataset.perguntas = 'sim';
+    caixa.checked = !document.body.classList.contains(CLASSE_PERGUNTAS_OCULTAS);
+    const grupo = criarElemento('div', CLASSE_RELATORIO + '__grupo-filtro');
+    grupo.appendChild(interruptor);
+    return grupo;
+}
+
+/**
+ * Cria um campo de horário (HH:MM) com rótulo.
+ * @param {string} rotulo - Texto do rótulo.
+ * @returns {{etiqueta: HTMLLabelElement, campo: HTMLInputElement}} Rótulo e campo.
+ */
+function criarCampoHorarioRelatorio(rotulo) {
+    const etiqueta = criarElemento('label', CLASSE_RELATORIO + '__campo-horario', rotulo + ' ');
+    const campo = document.createElement('input');
+    campo.type = 'time';
+    etiqueta.appendChild(campo);
+    return { etiqueta, campo };
+}
+
+/**
+ * Cria o bloco onde o professor define o horário (início e fim) da turma escolhida nas abas e o
+ * ON/OFF "Bloquear horário" (turma-horario.js). Ligado, fora do horário o aluno da turma não
+ * grava alternativas nem entrega; desligado ou horário vazio = sem limite.
+ * @param {{codigo: string, inicio: string, fim: string}[]} turmas - Turmas do relatório.
+ * @returns {HTMLElement} Bloco com os campos e o botão de salvar.
+ */
+function criarHorarioTurmaRelatorio(turmas) {
+    const bloco = criarElemento('div', CLASSE_RELATORIO + '__horario');
+    const inicio = criarCampoHorarioRelatorio('Horário da turma — início:');
+    const fim = criarCampoHorarioRelatorio('fim:');
+    const botao = criarBotao('btn-export', '💾 Salvar horário', async () => {
+        const turma = turmas.find((item) => item.codigo === turmaEscolhidaRelatorio);
+        try {
+            await definirHorarioTurma({ codigo: turma.codigo,
+                inicio: inicio.campo.value, fim: fim.campo.value });
+            turma.inicio = inicio.campo.value;
+            turma.fim = fim.campo.value;
+            await mostrarPopup(turma.inicio ? 'Horário salvo: alunos da turma só gravam e ' +
+                'entregam das ' + turma.inicio + ' às ' + turma.fim + '.'
+                : 'Horário removido: a turma não tem limite de horário.',
+            { tipo: 'sucesso', titulo: 'Horário da turma' });
+        } catch (erro) {
+            await mostrarPopup(erro.message, { tipo: 'erro' });
+        }
+    });
+    const bloqueio = criarBotaoBloqueioHorario({
+        obterTurma: () => turmas.find((item) => item.codigo === turmaEscolhidaRelatorio),
+        avisar: (texto, tipo) => mostrarPopup(texto, { tipo, titulo: 'Bloqueio de horário' }) });
+    bloco.append(inicio.etiqueta, fim.etiqueta, botao, bloqueio);
+    bloco.atualizar = () => {
+        const turma = turmas.find((item) => item.codigo === turmaEscolhidaRelatorio);
+        bloqueio.atualizar();
+        inicio.campo.value = turma?.inicio || '';
+        fim.campo.value = turma?.fim || '';
+    };
+    return bloco;
+}
+
+/**
+ * Cria o botão que marca/desmarca como favorita a turma escolhida nas abas.
+ * @param {{codigo: string, favorita: boolean}[]} turmas - Turmas do relatório.
+ * @param {Function} aoAlterar - Recarrega o relatório depois de gravar.
+ * @returns {HTMLButtonElement} Botão pronto.
+ */
+function criarBotaoFavoritaRelatorio(turmas, aoAlterar) {
+    const botao = criarBotaoFavorita('btn-export ' + CLASSE_RELATORIO + '__favorita', async () => {
+        const atual = turmas.find((turma) => turma.codigo === turmaEscolhidaRelatorio);
+        try {
+            await definirTurmaFavorita(atual?.favorita ? '' : turmaEscolhidaRelatorio);
+            await aoAlterar();
+        } catch (erro) {
+            await mostrarPopup(erro.message, { tipo: 'erro' });
+        }
+    });
+    botao.atualizar = () => atualizarBotaoFavorita(botao, turmas.some((turma) =>
+        turma.favorita && turma.codigo === turmaEscolhidaRelatorio));
+    botao.atualizar();
+    return botao;
+}
+
+/**
+ * Mostra a tabela "Notas dos alunos" (nome e nota em ordem alfabética, com PDF) em TODAS as
+ * atividades; só some na página que pedir <body data-tabela-notas="nao">. Uma falha aqui não
+ * derruba o relatório.
+ * @param {HTMLElement} bloco - Cartão do relatório do professor.
+ * @param {Object[]} linhas - Linhas do resumo.
+ * @param {Object[]} turmas - Turmas do relatório.
+ */
+async function abrirTabelaNotas(bloco, linhas, turmas) {
+    if (document.body.dataset.tabelaNotas === 'nao') return;
+    try {
+        if (typeof window.montarTabelaNotasProfessor !== 'function') {
+            await carregarScript('tabela-notas-professor.js');
+        }
+        montarTabelaNotasProfessor(bloco, linhas, { turmas, turma: turmaEscolhidaRelatorio });
+    } catch (erro) {
+        console.warn('Tabela de notas indisponível:', erro.message);
+    }
+}
+
+/**
+ * Mostra o botão "Liberar gabaritos (turma X)" nas páginas que têm o "Exportar Gabarito".
+ * Uma falha aqui não derruba o relatório.
+ * @param {HTMLElement} bloco - Cartão do relatório do professor.
+ * @param {number} atividadeId - Id da atividade no banco.
+ */
+async function abrirLiberarGabarito(bloco, atividadeId) {
+    if (!document.getElementById('btnExportarGabarito')) return;
+    try {
+        if (typeof window.montarLiberarGabaritoProfessor !== 'function') {
+            await carregarScript('liberacao-respostas-professor.js');
+        }
+        montarLiberarGabaritoProfessor(bloco, { atividadeId, turma: turmaEscolhidaRelatorio });
+    } catch (erro) {
+        console.warn('Liberar gabarito indisponível:', erro.message);
+    }
+}
+
+let ouvinteTurmaProgressoRelatorio = null;
+
+/**
+ * Faz as abas de turma (e o gabarito) acompanharem a turma escolhida no Progresso da turma.
+ * Um único ouvinte vale por vez; o evento que o próprio relatório dispara é ignorado.
+ * @param {HTMLElement} bloco - Cartão do relatório.
+ * @param {Object[]} linhas - Todas as linhas do resumo.
+ * @param {{codigo: string}[]} turmas - Turmas do relatório.
+ */
+function acompanharTurmaProgressoRelatorio(bloco, linhas, turmas) {
+    if (ouvinteTurmaProgressoRelatorio) {
+        document.removeEventListener('relatorio-professor:turma', ouvinteTurmaProgressoRelatorio);
+    }
+    ouvinteTurmaProgressoRelatorio = (evento) => {
+        const turma = String(evento.detail?.turma || '');
+        const ehConhecida = turmas.some((item) => item.codigo === turma);
+        if (!ehConhecida || turma === turmaEscolhidaRelatorio || !bloco.isConnected) return;
+        aplicarFiltroTurmaRelatorio(bloco, linhas, turma);
+    };
+    document.addEventListener('relatorio-professor:turma', ouvinteTurmaProgressoRelatorio);
+}
+
+/**
+ * Mostra, no início da atividade, o relatório do professor (cria ou substitui o cartão).
+ * @param {HTMLElement} secao - Seção de conteúdo da página.
+ * @param {number} atividadeId - Id da atividade no banco.
+ * @param {number} maximo - Limite de tentativas da atividade (vem do banco).
+ */
+async function montarRelatorioProfessor(secao, atividadeId, maximo) {
+    atividadeAtualRelatorio = atividadeId;
+    if (!document.body.dataset.perguntasIniciadas) {
+        document.body.dataset.perguntasIniciadas = 'sim';
+        document.body.classList.add(CLASSE_PERGUNTAS_OCULTAS);
+    }
+    secao.querySelector('.' + CLASSE_RELATORIO)?.remove();
+    const bloco = criarElemento('div', 'aula-card ' + CLASSE_RELATORIO);
+    bloco.appendChild(criarElemento('span', 'aula-badge', 'PROFESSOR'));
+    bloco.appendChild(criarElemento('div', 'aula-title', 'Respostas dos alunos nesta atividade'));
+    bloco.appendChild(montarInterruptorPerguntas());
+    secao.insertBefore(bloco, secao.firstChild.nextSibling);
+    try {
+        const dadosTurmas = await buscarDadosTurmas();
+        const tentativas = await acrescentarQuestoesNota(await buscarResumoTentativas(atividadeId),
+            atividadeId);
+        const linhas = await acrescentarAlunosSemResposta(
+            await acrescentarAberturas(tentativas, atividadeId), atividadeId, dadosTurmas);
+        const resumo = criarElemento('p', CLASSE_RELATORIO + '__resumo');
+        bloco.appendChild(resumo);
+        atualizarResumoRelatorio(resumo, linhas);
+        if (!linhas.length) return;
+        const turmas = listarTurmasRelatorio(linhas, dadosTurmas);
+        const doProgresso = String(window.lerTurmaEscolhidaProgresso?.() || '');
+        const ehPrimeiraMontagem = turmaEscolhidaRelatorio === null;
+        const progressoNaLista = turmas.some((turma) => turma.codigo === doProgresso);
+        if (ehPrimeiraMontagem && progressoNaLista) turmaEscolhidaRelatorio = doProgresso;
+        const existe = turmas.some((turma) => turma.codigo === turmaEscolhidaRelatorio);
+        const favorita = turmas.find((turma) => turma.favorita);
+        if (!existe) turmaEscolhidaRelatorio = (favorita || turmas[0]).codigo;
+        bloco.appendChild(montarAbasTurmaRelatorio(turmas,
+            (turma) => aplicarFiltroTurmaRelatorio(bloco, linhas, turma)));
+        bloco.appendChild(criarHorarioTurmaRelatorio(turmas));
+        bloco.appendChild(criarBotaoFavoritaRelatorio(turmas, () =>
+            montarRelatorioProfessor(secao, atividadeId, maximo)));
+        bloco.appendChild(montarFiltrosRelatorio(
+            () => aplicarFiltroTurmaRelatorio(bloco, linhas, turmaEscolhidaRelatorio)));
+        bloco.appendChild(montarListaAlunosRelatorio(linhas, { secao, atividadeId, maximo }));
+        aplicarNotasGlobais(bloco);
+        aplicarFiltroTurmaRelatorio(bloco, linhas, turmaEscolhidaRelatorio);
+        acompanharTurmaProgressoRelatorio(bloco, linhas, turmas);
+        await abrirLiberarGabarito(bloco, atividadeId);
+        await abrirTabelaNotas(bloco, linhas, turmas);
+    } catch (erro) {
+        bloco.appendChild(criarElemento('p', CLASSE_RELATORIO + '__erro',
+            MSG_ERRO_RELATORIO + erro.message));
+    }
+}

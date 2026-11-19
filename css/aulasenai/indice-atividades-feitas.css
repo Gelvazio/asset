@@ -1,0 +1,56 @@
+/* Coluna "Fez Atividade?" e filtro do índice de atividades (assets/js/indice-atividades-feitas.js) */
+.marca-feita { margin: 6px 0; font-size: 13px; font-weight: 700; }
+.marca-feita--sim { color: #1b7f3b; }
+.marca-feita--nao { color: #b42318; }
+.filtro-feitas {
+  display: flex; justify-content: center; padding: 12px 20px 0; font-size: 14px; font-weight: 600;
+}
+.filtro-feitas select { margin-left: 6px; padding: 4px 8px; border-radius: 6px; }
+article.aula[hidden] { display: none; }
+
+/* Cor do botão de cada atividade pelo andamento do aluno (#283, 2026-10-18; seletor reforçado na
+   #284 para vencer as regras do botão): entregue = fundo verde claro; algo pendente = o amarelo de
+   hoje (sem regra nova); não fez nada = fundo vermelho fraco piscando. As classes vêm do
+   indice-atividades-feitas.js (só aluno logado). */
+article.aula a.btn.principal.atividade--feita {
+  background: #d9f7e6; border-color: #34a853; color: #0b6b3a;
+}
+article.aula a.btn.principal.atividade--feita:hover {
+  background: #c3f0d8; border-color: #34a853;
+}
+/* Entregue por falta (Faltou? do professor): amarelo claro; a observação aparece ao passar o mouse
+   e na própria atividade (assets/js/aviso-falta-entrega.js). */
+article.aula a.btn.principal.atividade--entregue-por-falta {
+  background: #fff6c8; border-color: #e0b400; color: #5c4600;
+}
+article.aula a.btn.principal.atividade--entregue-por-falta:hover {
+  background: #ffefa3; border-color: #e0b400;
+}
+article.aula a.btn.principal.atividade--nao-feita {
+  background: #fde2e1; border-color: #f3a7a2; color: #a11212;
+  animation: piscar-atividade-nao-feita 1.6s ease-in-out infinite;
+}
+article.aula a.btn.principal.atividade--nao-feita:hover {
+  background: #fbd5d3; border-color: #f3a7a2;
+}
+@keyframes piscar-atividade-nao-feita {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  article.aula a.btn.principal.atividade--nao-feita { animation: none; }
+}
+
+@media (max-width: 600px) {
+  .filtro-feitas { padding: 10px 10px 0; flex-wrap: wrap; }
+  .filtro-feitas select { font-size: 16px; padding: 8px 10px; }
+}
+
+/* Aluno: só os botões das atividades ficam coloridos (pedido do usuário, 2026-11-09); o card
+   inteiro mantém o fundo normal. As classes card-atividade-* continuam no card porque o filtro
+   "Somente pendentes" usa a classe de concluído para esconder o card. */
+body.indice-aluno-so-botoes article.aula.card-atividade-concluida,
+body.indice-aluno-so-botoes article.aula.card-atividade-pendente {
+  background-color: #f9fafb;
+  animation: none;
+}

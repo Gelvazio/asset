@@ -1,0 +1,94 @@
+/* Professor: botão "Confirmar Correção" embaixo da prova (finalizar-atividade-professor.js). */
+
+:root {
+    --finalizar-destaque: #2f855a;
+    --finalizar-texto-claro: #ffffff;
+    --finalizar-texto-suave: #4a5568;
+    --finalizar-raio: 10px;
+}
+
+.finalizar-atividade {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+}
+
+.finalizar-atividade__botao {
+    padding: 12px 28px;
+    border: none;
+    border-radius: var(--finalizar-raio);
+    background: var(--finalizar-destaque);
+    color: var(--finalizar-texto-claro);
+    font: inherit;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.finalizar-atividade__botao:disabled {
+    cursor: wait;
+    opacity: 0.6;
+}
+
+.finalizar-atividade__situacao {
+    margin: 0;
+    color: var(--finalizar-texto-suave);
+    font-size: 15px;
+}
+
+@media print {
+    .finalizar-atividade {
+        display: none;
+    }
+}
+
+.finalizar-atividade__corrigida {
+    margin: 0;
+    color: var(--finalizar-destaque);
+    font-size: 18px;
+    font-weight: 700;
+}
+
+/* Professor: bloco "Correção da turma" acima do Confirmar Correção (correcao-turma-professor.js). */
+.correcao-turma {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+}
+
+.correcao-turma h3 {
+    margin: 0;
+}
+
+.correcao-turma__explicacao {
+    margin: 0;
+    color: var(--finalizar-texto-suave);
+    font-size: 15px;
+}
+
+.correcao-turma__botoes {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+
+.correcao-turma__botao {
+    padding: 10px 22px;
+    border: 2px solid var(--finalizar-destaque);
+    border-radius: var(--finalizar-raio);
+    background: transparent;
+    color: var(--finalizar-destaque);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.correcao-turma__botao:disabled {
+    cursor: wait;
+    opacity: 0.6;
+}

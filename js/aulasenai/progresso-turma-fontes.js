@@ -1,0 +1,635 @@
+// Fontes de dados do Progresso da turma GLOBAL (assets/js/progresso-turma-global.js): cada tipo
+// de atividade lê o banco do seu jeito e devolve os alunos no MESMO formato, para a tela, os
+// gráficos, o Cálculo Nota e o mínimo de questões servirem às objetivas e às discursivas.
+//   - objetiva: resposta_atividade (questões respondidas) + resumo_tentativas_atividade (acertos
+//     e entrega; a conta é feita no banco e o gabarito não sai de lá);
+//   - discursiva: resposta_discursiva (tópicos com texto) + correcao_discursiva (nota da IA).
+// Formato do aluno: { alunoId, nome, porQuestao: Map(item → partes respondidas), entregue,
+//   entreguePorProfessor, minimoDoAluno, provaCorrigida (objetiva: entregue; discursiva:
+//   entregue e com nota do professor em todas as questões respondidas — tarefa #147),
+//   notaProfessor (soma das notas do professor; só discursiva — tarefa #163),
+//   correcao: {nota, possivel, corrigidos, certas, meias, erradas} | null }.
+// A "nota" da correção está na escala da prova inteira (0 a 10); o painel a torna proporcional
+// ao mínimo do aluno. Só leitura; o RLS limita aos alunos das turmas do professor.
+// Depende de js/supabase.js (obterClienteSupabase, sbGet). Regra: docs/regras/atividades.md
+
+const LINHAS_POR_PAGINA_PROGRESSO = 1000;
+const NOTA_TOTAL_DA_PROVA = 10;
+// Origem da nota que o professor lança direto, sem a prova (nota_gravada.origem).
+const ORIGEM_NOTA_LANCADA = 'PROFESSOR';
+// Questões escondidas por passarem do mínimo do aluno (questoes-ate-minimo.js) não contam.
+const SELETOR_QUESTAO_OBJETIVA_PROGRESSO = '.aula-card.questao:not(.questao--fora-do-minimo)';
+const SELETOR_TOPICO_DISCURSIVA_PROGRESSO = '.topico-resposta';
+const TIPO_PROGRESSO_OBJETIVA = 'objetiva';
+const TIPO_PROGRESSO_DISCURSIVA = 'discursiva';
+const TIPO_PROGRESSO_DINAMICA = 'dinamica';
+const COLUNAS_CHAVE_OBJETIVA = ['aluno_id', 'tentativa', 'item'];
+const COLUNAS_CHAVE_DISCURSIVA = ['aluno_id', 'tentativa', 'item', 'topico'];
+
+// Alunos desistentes (#342) lidos junto com os nomes: ficam fora da lista do progresso.
+const alunosDesistentesProgresso = new Set();
+
+/**
+ * Lê todas as linhas de uma tabela da atividade, de 1000 em 1000 (a API do Supabase devolve no
+ * máximo 1000 linhas por consulta; sem paginar, turmas grandes ficariam cortadas sem aviso).
+ * A ordem cobre a chave inteira da tabela, para nenhuma linha repetir ou sumir entre as páginas.
+ * @param {{tabela: string, colunas: string, atividadeId: number, ordem: string[]}} consulta -
+ *     Tabela, colunas, atividade e colunas da chave (ordem).
+ * @returns {Promise<Object[]>} Todas as linhas.
+ * @throws {Error} Se o banco recusar.
+ */
+async function lerTodasAsLinhasProgresso(consulta) {
+    const linhas = [];
+    for (let inicio = 0; ; inicio += LINHAS_POR_PAGINA_PROGRESSO) {
+        let pedido = obterClienteSupabase().from(consulta.tabela)
+            .select(consulta.colunas).eq('atividade_id', consulta.atividadeId);
+        consulta.ordem.forEach((coluna) => { pedido = pedido.order(coluna); });
+        const { data, error } = await pedido
+            .range(inicio, inicio + LINHAS_POR_PAGINA_PROGRESSO - 1);
+        if (error) throw new Error(error.message);
+        linhas.push(...data);
+        if (data.length < LINHAS_POR_PAGINA_PROGRESSO) return linhas;
+    }
+}
+
+/**
+ * Conta, por aluno, as partes respondidas em cada questão — só a tentativa mais recente (a
+ * tentativa vale mesmo que só tenha linhas sem resposta, como tópicos apagados).
+ * @param {Object[]} linhas - Linhas {aluno_id, tentativa, item}.
+ * @param {Function} [temResposta] - Diz se a linha conta como parte respondida.
+ * @returns {Map<string, {tentativa: number, porQuestao: Map<number, number>}>} Por aluno.
+ */
+function contarPartesPorAluno(linhas, temResposta = () => true) {
+    const progresso = new Map();
+    linhas.forEach((linha) => {
+        const atual = progresso.get(linha.aluno_id);
+        if (!atual || linha.tentativa > atual.tentativa) {
+            progresso.set(linha.aluno_id, { tentativa: linha.tentativa, porQuestao: new Map() });
+        }
+        const registro = progresso.get(linha.aluno_id);
+        const contaNestaTentativa = linha.tentativa === registro.tentativa && temResposta(linha);
+        if (!contaNestaTentativa) return;
+        registro.porQuestao.set(linha.item, (registro.porQuestao.get(linha.item) || 0) + 1);
+    });
+    return progresso;
+}
+
+/**
+ * Lê o mínimo próprio de cada aluno (tabela minimo_questoes_aluno).
+ * @param {number} atividadeId - Id da atividade.
+ * @returns {Promise<Map<string, number>>} Aluno → mínimo.
+ */
+async function lerMinimosDosAlunos(atividadeId) {
+    const linhas = await sbGet('minimo_questoes_aluno',
+        'select=aluno_id,minimo&atividade_id=eq.' + atividadeId);
+    return new Map(linhas.map((linha) => [linha.aluno_id, linha.minimo]));
+}
+
+/**
+ * Lê a "Quantidade Questão Considerar" de cada aluno (tabela questoes_nota_aluno): quantas
+ * questões contam para a nota. Falha ao ler = segue sem a quantidade (a nota usa o mínimo).
+ * @param {number} atividadeId - Id da atividade.
+ * @returns {Promise<Map<string, number>>} Aluno → quantidade para a nota.
+ */
+async function lerQuestoesNotaDosAlunos(atividadeId) {
+    try {
+        const linhas = await sbGet('questoes_nota_aluno',
+            'select=aluno_id,quantidade&atividade_id=eq.' + atividadeId);
+        return new Map(linhas.map((linha) => [linha.aluno_id, linha.quantidade]));
+    } catch (erro) {
+        console.warn('Quantidade Questão Considerar:', erro.message);
+        return new Map();
+    }
+}
+
+/**
+ * Lê (uma vez) o mínimo padrão de questões da atividade (vazio = todas).
+ * @param {number} atividadeId - Id da atividade.
+ * @param {Object} memoria - Memória da fonte entre as leituras.
+ * @returns {Promise<number|null>} Mínimo padrão ou null.
+ */
+async function lerMinimoPadraoDaAtividade(atividadeId, memoria) {
+    if (memoria.minimoPadrao !== undefined) return memoria.minimoPadrao;
+
+    const [atividade] = await sbGet('atividade',
+        'select=minimo_questoes_entrega&id=eq.' + atividadeId);
+    memoria.minimoPadrao = atividade?.minimo_questoes_entrega || null;
+    return memoria.minimoPadrao;
+}
+
+/**
+ * Busca no banco só os nomes de alunos ainda não conhecidos (o resto vem da memória da fonte) e
+ * guarda quais são desistentes (#342).
+ * @param {string[]} ids - Ids dos alunos.
+ * @param {Map<string, string>} nomes - Memória dos nomes (preenchida aqui).
+ */
+async function carregarNomesDosAlunos(ids, nomes) {
+    const novos = ids.filter((id) => !nomes.has(id));
+    if (!novos.length) return;
+
+    const alunos = await sbGet('aluno',
+        'select=id,nome,desistente&id=in.(' + novos.join(',') + ')');
+    alunos.forEach((aluno) => {
+        nomes.set(aluno.id, aluno.nome);
+        if (aluno.desistente) alunosDesistentesProgresso.add(aluno.id);
+    });
+}
+
+/**
+ * Monta a lista final de alunos no formato comum, em ordem alfabética (sem os desistentes).
+ * @param {Map<string, Object>} progresso - Saída de contarPartesPorAluno.
+ * @param {Object} extras - nomes, minimos, entregues e peloProfessor (Set "aluno|tentativa") e
+ *     correcoes (Map).
+ * @returns {Object[]} Alunos no formato comum.
+ */
+function montarAlunosDoProgresso(progresso, extras) {
+    const ativos = [...progresso.keys()].filter((id) => !alunosDesistentesProgresso.has(id));
+    return ativos.map((id) => {
+        const { tentativa, porQuestao } = progresso.get(id);
+        const chave = id + '|' + tentativa;
+        return {
+            alunoId: id,
+            tentativa,
+            nome: extras.nomes.get(id) || 'Aluno sem nome',
+            porQuestao,
+            entregue: extras.entregues.has(chave),
+            entreguePorProfessor: extras.peloProfessor.has(chave),
+            minimoDoAluno: extras.minimos.get(id) || null,
+            questoesNotaDoAluno: extras.questoesNota?.get(id) || null,
+            correcao: extras.correcoes.get(chave) || null,
+        };
+    }).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+/**
+ * Objetiva: estrutura da prova lida da página (cada questão tem 1 parte: a alternativa).
+ * @returns {Map<number, number>} Questão → 1, em ordem.
+ */
+function lerEstruturaObjetiva() {
+    const estrutura = new Map();
+    document.querySelectorAll(SELETOR_QUESTAO_OBJETIVA_PROGRESSO).forEach((card) => {
+        const numero = Number((card.querySelector('.aula-badge')?.textContent.match(/\d+/) ||
+            [0])[0]);
+        if (numero) estrutura.set(numero, 1);
+    });
+    return new Map([...estrutura.entries()].sort((a, b) => a[0] - b[0]));
+}
+
+/**
+ * Objetiva: lê acertos e entrega de cada aluno e tentativa (função do banco, só professor).
+ * @param {number} atividadeId - Id da atividade.
+ * @returns {Promise<Object[]>} Linhas de resumo_tentativas_atividade.
+ * @throws {Error} Se o banco recusar.
+ */
+async function lerResumoObjetiva(atividadeId) {
+    const { data, error } = await obterClienteSupabase().rpc('resumo_tentativas_atividade',
+        { p_atividade: atividadeId });
+    if (error) throw new Error(error.message);
+    // Desistente fora do progresso (helper único filtrarDesistentes, js/supabase.js).
+    return filtrarDesistentes(data || [], { campoTurma: 'turma_codigo' });
+}
+
+/**
+ * Objetiva: converte acertos em correção no formato comum (nota na escala da prova inteira:
+ * cada acerto vale 10 ÷ total; o painel a torna proporcional ao mínimo do aluno).
+ * @param {Object} linha - Linha do resumo (respondidas, acertos, total).
+ * @returns {Object} Correção {nota, possivel, corrigidos, certas, meias, erradas}.
+ */
+function converterAcertosEmCorrecao(linha) {
+    const valorDaQuestao = NOTA_TOTAL_DA_PROVA / (linha.total || 1);
+    return {
+        nota: linha.acertos * valorDaQuestao,
+        possivel: linha.respondidas * valorDaQuestao,
+        corrigidos: linha.respondidas,
+        certas: linha.acertos,
+        meias: 0,
+        erradas: linha.respondidas - linha.acertos,
+    };
+}
+
+/**
+ * Objetiva: lê o progresso de cada aluno.
+ * @param {number} atividadeId - Id da atividade.
+ * @param {Object} memoria - Memória da fonte entre as leituras.
+ * @returns {Promise<Object[]>} Alunos no formato comum.
+ */
+async function lerAlunosObjetiva(atividadeId, memoria) {
+    const [respostas, resumo, minimos, questoesNota] = await Promise.all([
+        lerTodasAsLinhasProgresso({ tabela: 'resposta_atividade',
+            colunas: 'aluno_id,tentativa,item', atividadeId, ordem: COLUNAS_CHAVE_OBJETIVA }),
+        lerResumoObjetiva(atividadeId),
+        lerMinimosDosAlunos(atividadeId),
+        lerQuestoesNotaDosAlunos(atividadeId),
+        lerMinimoPadraoDaAtividade(atividadeId, memoria),
+    ]);
+    const correcoes = new Map();
+    const entregues = new Set();
+    const peloProfessor = new Set();
+    resumo.forEach((linha) => {
+        const chave = linha.aluno_id + '|' + linha.tentativa;
+        correcoes.set(chave, converterAcertosEmCorrecao(linha));
+        if (linha.entregue_em) entregues.add(chave);
+        if (linha.entregue_por) peloProfessor.add(chave);
+        if (linha.nome) memoria.nomes.set(linha.aluno_id, linha.nome);
+    });
+    const progresso = contarPartesPorAluno(respostas);
+    await carregarNomesDosAlunos([...progresso.keys()], memoria.nomes);
+    // A objetiva é corrigida pelo banco: entregue = corrigida.
+    const alunos = montarAlunosDoProgresso(progresso, { nomes: memoria.nomes, minimos,
+        questoesNota, entregues, peloProfessor, correcoes })
+        .map((aluno) => ({ ...aluno, provaCorrigida: aluno.entregue }));
+    return incluirNotasLancadas(alunos, atividadeId, memoria);
+}
+
+/**
+ * Objetiva: lê as notas que o professor lançou direto (nota_gravada com origem PROFESSOR), para
+ * quem não fez a prova. Falha ao ler = segue sem elas (o quadro continua como antes).
+ * @param {number} atividadeId - Id da atividade.
+ * @returns {Promise<Object[]>} Linhas {aluno_id, nota, justificativa}.
+ */
+async function lerNotasLancadasObjetiva(atividadeId) {
+    try {
+        return await sbGet('nota_gravada', 'select=aluno_id,nota,justificativa' +
+            '&origem=eq.' + ORIGEM_NOTA_LANCADA + '&atividade_id=eq.' + atividadeId);
+    } catch (erro) {
+        console.warn('Notas lançadas pelo professor não lidas:', erro);
+        return [];
+    }
+}
+
+/**
+ * Objetiva: acrescenta a nota lançada pelo professor (sem respostas nem entrega) ao quadro: o
+ * aluno que já está na lista recebe a nota; quem não está entra só com ela.
+ * @param {Object[]} alunos - Alunos no formato comum.
+ * @param {number} atividadeId - Id da atividade.
+ * @param {Object} memoria - Memória da fonte (nomes).
+ * @returns {Promise<Object[]>} Alunos, em ordem alfabética.
+ */
+async function incluirNotasLancadas(alunos, atividadeId, memoria) {
+    const lancadas = await lerNotasLancadasObjetiva(atividadeId);
+    if (!lancadas.length) return alunos;
+
+    await carregarNomesDosAlunos(lancadas.map((linha) => linha.aluno_id), memoria.nomes);
+    const porAluno = new Map(lancadas.map((linha) => [linha.aluno_id, linha]));
+    const comNota = alunos.map((aluno) => {
+        const lancada = porAluno.get(aluno.alunoId);
+        return lancada ? { ...aluno, notaLancada: Number(lancada.nota),
+            justificativaLancada: lancada.justificativa, provaCorrigida: true } : aluno;
+    });
+    const listados = new Set(alunos.map((aluno) => aluno.alunoId));
+    const sozinhos = lancadas
+        .filter((linha) => !listados.has(linha.aluno_id) &&
+            !alunosDesistentesProgresso.has(linha.aluno_id))
+        .map((linha) => ({ alunoId: linha.aluno_id, tentativa: 1,
+            nome: memoria.nomes.get(linha.aluno_id) || 'Aluno sem nome', porQuestao: new Map(),
+            entregue: false, entreguePorProfessor: false, minimoDoAluno: null,
+            questoesNotaDoAluno: null, correcao: null, provaCorrigida: true,
+            notaLancada: Number(linha.nota), justificativaLancada: linha.justificativa }));
+    return [...comNota, ...sozinhos]
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+/**
+ * Discursiva: estrutura da prova lida da página (tópicos de cada questão). Plano B de
+ * lerEstruturaDiscursiva quando o banco não responde.
+ * @returns {Map<number, number>} Questão → quantidade de tópicos, em ordem.
+ */
+function lerEstruturaDiscursivaDaPagina() {
+    const estrutura = new Map();
+    document.querySelectorAll(SELETOR_TOPICO_DISCURSIVA_PROGRESSO).forEach((bloco) => {
+        const item = Number(bloco.dataset.item);
+        estrutura.set(item, (estrutura.get(item) || 0) + 1);
+    });
+    return new Map([...estrutura.entries()].sort((a, b) => a[0] - b[0]));
+}
+
+/**
+ * Discursiva: estrutura da prova pelos tópicos ATIVOS do banco (topico_discursivo), a mesma
+ * base da nota gravada (nota_discursiva_calcular conta as questões de topico_discursivo).
+ * Assim o total de questões do painel (e a nota proporcional) não depende do DOM da página.
+ * Sem atividade, sem acesso ou sem linhas, usa a página.
+ * @param {number} [atividadeId] - Id da atividade.
+ * @returns {Promise<Map<number, number>>} Questão → quantidade de tópicos, em ordem.
+ */
+async function lerEstruturaDiscursiva(atividadeId) {
+    if (!atividadeId) return lerEstruturaDiscursivaDaPagina();
+    try {
+        const topicos = await sbGet('topico_discursivo',
+            'select=item,topico&atividade_id=eq.' + atividadeId);
+        if (!topicos.length) return lerEstruturaDiscursivaDaPagina();
+        const estrutura = new Map();
+        topicos.forEach(({ item }) => estrutura.set(Number(item),
+            (estrutura.get(Number(item)) || 0) + 1));
+        return new Map([...estrutura.entries()].sort((a, b) => a[0] - b[0]));
+    } catch (erro) {
+        console.warn('Estrutura da discursiva pelo banco:', erro.message);
+        return lerEstruturaDiscursivaDaPagina();
+    }
+}
+
+/**
+ * Discursiva: lê (uma vez) os pontos de cada tópico, para o percentual de acerto.
+ * @param {number} atividadeId - Id da atividade.
+ * @param {Object} memoria - Memória da fonte entre as leituras.
+ * @returns {Promise<Map<string, number>>} Chave "item|topico" → pontos.
+ */
+async function lerPontosDosTopicos(atividadeId, memoria) {
+    if (memoria.pontosDosTopicos) return memoria.pontosDosTopicos;
+
+    const topicos = await sbGet('topico_discursivo',
+        'select=item,topico,pontos&atividade_id=eq.' + atividadeId);
+    memoria.pontosDosTopicos = new Map(topicos.map((topico) =>
+        [topico.item + '|' + topico.topico, Number(topico.pontos)]));
+    return memoria.pontosDosTopicos;
+}
+
+/**
+ * Discursiva: soma, por aluno e tentativa, a nota da IA, os pontos possíveis e as alternativas
+ * já corrigidas (certas, meias certas e erradas).
+ * @param {Object[]} linhas - Linhas {aluno_id, tentativa, item, topico, nota_ia}.
+ * @param {Map<string, number>} pontos - Pontos de cada tópico ("item|topico").
+ * @returns {Map<string, Object>} "aluno|tentativa" → correção no formato comum.
+ */
+function somarCorrecoesDaIa(linhas, pontos) {
+    const correcoes = new Map();
+    linhas.forEach((linha) => {
+        if (linha.nota_ia === null || linha.nota_ia === undefined) return;
+        const chave = linha.aluno_id + '|' + linha.tentativa;
+        const atual = correcoes.get(chave) ||
+            { nota: 0, possivel: 0, corrigidos: 0, certas: 0, meias: 0, erradas: 0 };
+        const valor = Number(linha.nota_ia);
+        const pontosDoTopico = pontos.get(linha.item + '|' + linha.topico) || 0;
+        const estaCerta = pontosDoTopico > 0 && valor >= pontosDoTopico;
+        correcoes.set(chave, {
+            nota: atual.nota + valor,
+            possivel: atual.possivel + pontosDoTopico,
+            corrigidos: atual.corrigidos + 1,
+            certas: atual.certas + (estaCerta ? 1 : 0),
+            meias: atual.meias + (!estaCerta && valor > 0 ? 1 : 0),
+            erradas: atual.erradas + (valor === 0 ? 1 : 0),
+        });
+    });
+    return correcoes;
+}
+
+/**
+ * Discursiva: fator que leva os pontos brutos à escala da prova inteira (0 a 10), igual ao banco
+ * (notas_media_final: soma das notas ÷ pontos de todos os tópicos × 10). Sem isso, uma prova que
+ * vale mais de 10 pontos estoura o limite e todo aluno aparece com 10,00.
+ * @param {Map<string, number>} pontos - Pontos de cada tópico ("item|topico").
+ * @returns {number} Fator (1 se a prova não tiver pontos).
+ */
+function fatorDeEscalaDaDiscursiva(pontos) {
+    const total = [...pontos.values()].reduce((soma, valor) => soma + valor, 0);
+    return total > 0 ? NOTA_TOTAL_DA_PROVA / total : 1;
+}
+
+/**
+ * Discursiva: passa a nota e os pontos possíveis de cada correção para a escala da prova (0 a
+ * 10), sem mudar o percentual de acerto (nota ÷ possível).
+ * @param {Map<string, Object>} correcoes - "aluno|tentativa" → correção em pontos brutos.
+ * @param {number} fator - Fator de fatorDeEscalaDaDiscursiva.
+ * @returns {Map<string, Object>} Correções na escala da prova.
+ */
+function escalarCorrecoesDaDiscursiva(correcoes, fator) {
+    return new Map([...correcoes].map(([chave, correcao]) => [chave,
+        { ...correcao, nota: correcao.nota * fator, possivel: correcao.possivel * fator }]));
+}
+
+/**
+ * Discursiva: conta, por aluno e tentativa, os tópicos com a nota do professor (só das questões
+ * que entram na nota do aluno: da 1 até o limite dele).
+ * @param {Object[]} linhas - Linhas de correcao_discursiva (nota_professor).
+ * @param {function(string): number} limiteDoAluno - Última questão que conta para o aluno.
+ * @returns {Map<string, number>} Chave "aluno|tentativa" → tópicos com nota do professor.
+ */
+function contarNotasDoProfessor(linhas, limiteDoAluno) {
+    const contagem = new Map();
+    linhas.forEach((linha) => {
+        const temNota = linha.nota_professor !== null && linha.nota_professor !== undefined;
+        if (!temNota || linha.item > limiteDoAluno(linha.aluno_id)) return;
+        const chave = linha.aluno_id + '|' + linha.tentativa;
+        contagem.set(chave, (contagem.get(chave) || 0) + 1);
+    });
+    return contagem;
+}
+
+/**
+ * Discursiva: soma, por aluno e tentativa, as notas do professor (escala da prova inteira).
+ * @param {Object[]} linhas - Linhas de correcao_discursiva (nota_professor).
+ * @returns {Map<string, number>} Chave "aluno|tentativa" → soma das notas do professor.
+ */
+function somarNotasDoProfessor(linhas) {
+    const somas = new Map();
+    linhas.forEach((linha) => {
+        const temNota = linha.nota_professor !== null && linha.nota_professor !== undefined;
+        if (!temNota) return;
+        const chave = linha.aluno_id + '|' + linha.tentativa;
+        somas.set(chave, (somas.get(chave) || 0) + Number(linha.nota_professor));
+    });
+    return somas;
+}
+
+/**
+ * Discursiva: passa a soma das notas do professor para a escala da prova (0 a 10).
+ * @param {number|undefined} soma - Soma em pontos brutos (undefined = sem nota do professor).
+ * @param {number} fator - Fator de fatorDeEscalaDaDiscursiva.
+ * @returns {number|undefined} Soma na escala da prova, ou undefined.
+ */
+function escalarNotaDoProfessor(soma, fator) {
+    return soma === undefined ? undefined : soma * fator;
+}
+
+/**
+ * Discursiva: prova corrigida = entregue e com a nota do professor em todas as questões
+ * respondidas (pelo menos uma). Só contam as questões da 1 até o limite do aluno.
+ * @param {Object} aluno - Aluno no formato comum.
+ * @param {Map<string, number>} notasDoProfessor - Tópicos com nota do professor por tentativa.
+ * @param {number} limite - Última questão que entra na nota do aluno.
+ * @returns {boolean} true se o professor já corrigiu a prova.
+ */
+function discursivaFoiCorrigida(aluno, notasDoProfessor, limite) {
+    const respondidos = [...aluno.porQuestao].filter(([item]) => item <= limite)
+        .reduce((soma, [, valor]) => soma + valor, 0);
+    const doProfessor = notasDoProfessor.get(aluno.alunoId + '|' + aluno.tentativa) || 0;
+    return aluno.entregue && doProfessor > 0 && doProfessor >= respondidos;
+}
+
+/**
+ * Discursiva: lê o progresso de cada aluno.
+ * @param {number} atividadeId - Id da atividade.
+ * @param {Object} memoria - Memória da fonte entre as leituras.
+ * @returns {Promise<Object[]>} Alunos no formato comum.
+ */
+async function lerAlunosDiscursiva(atividadeId, memoria) {
+    const [respostas, entregas, linhasIa, pontos, minimos, questoesNota] = await Promise.all([
+        lerTodasAsLinhasProgresso({ tabela: 'resposta_discursiva',
+            colunas: 'aluno_id,tentativa,item,texto', atividadeId,
+            ordem: COLUNAS_CHAVE_DISCURSIVA }),
+        sbGet('entrega_atividade',
+            'select=aluno_id,tentativa,entregue_por&atividade_id=eq.' + atividadeId),
+        lerTodasAsLinhasProgresso({ tabela: 'correcao_discursiva',
+            colunas: 'aluno_id,tentativa,item,topico,nota_ia,nota_professor', atividadeId,
+            ordem: COLUNAS_CHAVE_DISCURSIVA }),
+        lerPontosDosTopicos(atividadeId, memoria),
+        lerMinimosDosAlunos(atividadeId),
+        lerQuestoesNotaDosAlunos(atividadeId),
+        lerMinimoPadraoDaAtividade(atividadeId, memoria),
+    ]);
+    const progresso = contarPartesPorAluno(respostas,
+        (linha) => (linha.texto || '').trim() !== '');
+    // Quem entregou sem responder nenhum tópico não tem linha em resposta_discursiva;
+    // entra mesmo assim (nota 0), senão some do progresso e dos filtros da IA.
+    const tentativaEntregue = new Map();
+    entregas.forEach((entrega) => {
+        const atual = tentativaEntregue.get(entrega.aluno_id) || 0;
+        tentativaEntregue.set(entrega.aluno_id, Math.max(atual, entrega.tentativa));
+    });
+    tentativaEntregue.forEach((tentativa, alunoId) => {
+        if (!progresso.has(alunoId)) {
+            progresso.set(alunoId, { tentativa, porQuestao: new Map() });
+        }
+    });
+    await carregarNomesDosAlunos([...progresso.keys()], memoria.nomes);
+    const limiteDoAluno = (alunoId) => questoesNota.get(alunoId) || minimos.get(alunoId) ||
+        memoria.minimoPadrao || Infinity;
+    // As notas (IA e professor) só somam as questões da 1 até o limite do aluno ("Quantidade
+    // Mínima"); assim as duas ficam na mesma base e o Confirmar Todas as compara sem diferença.
+    const linhasDaNota = linhasIa.filter((linha) =>
+        linha.item <= limiteDoAluno(linha.aluno_id));
+    const notasDoProfessor = contarNotasDoProfessor(linhasIa, limiteDoAluno);
+    const somasDoProfessor = somarNotasDoProfessor(linhasDaNota);
+    const fator = fatorDeEscalaDaDiscursiva(pontos);
+    const alunos = montarAlunosDoProgresso(progresso, {
+        nomes: memoria.nomes, minimos, questoesNota,
+        correcoes: escalarCorrecoesDaDiscursiva(somarCorrecoesDaIa(linhasDaNota, pontos), fator),
+        entregues: new Set(entregas.map((entrega) => entrega.aluno_id + '|' + entrega.tentativa)),
+        peloProfessor: new Set(entregas.filter((entrega) => entrega.entregue_por)
+            .map((entrega) => entrega.aluno_id + '|' + entrega.tentativa)),
+    });
+    return alunos.map((aluno) => ({ ...aluno,
+        provaCorrigida: discursivaFoiCorrigida(aluno, notasDoProfessor,
+            limiteDoAluno(aluno.alunoId)),
+        notaProfessor: escalarNotaDoProfessor(
+            somasDoProfessor.get(aluno.alunoId + '|' + aluno.tentativa), fator) }));
+}
+
+/**
+ * Dinâmica: estrutura do painel (1 parte: a entrega da atividade).
+ * @returns {Map<number, number>} Mapa com a parte única {1 → 1}.
+ */
+function lerEstruturaDinamica() {
+    return new Map([[1, 1]]);
+}
+
+/**
+ * Dinâmica: monta um aluno no formato comum a partir da entrega e da nota lançada.
+ * @param {string} alunoId - Id do aluno.
+ * @param {Object|undefined} entrega - Linha de entrega_dinamica do aluno.
+ * @param {Object|undefined} nota - Linha de nota_dinamica do aluno.
+ * @param {Map<string, string>} nomes - Memória dos nomes.
+ * @returns {Object} Aluno no formato comum.
+ */
+function montarAlunoDaDinamica(alunoId, entrega, nota, nomes) {
+    const estaEntregue = Boolean(entrega?.entregue);
+    const temNota = nota !== undefined && nota.nota !== null && nota.nota !== undefined;
+    return {
+        alunoId,
+        nome: nomes.get(alunoId) || 'Aluno sem nome',
+        porQuestao: new Map(estaEntregue ? [[1, 1]] : []),
+        entregue: estaEntregue,
+        entreguePorProfessor: false,
+        minimoDoAluno: null,
+        questoesNotaDoAluno: null,
+        tentativa: 1,
+        correcao: null,
+        provaCorrigida: temNota,
+        notaProfessor: temNota ? Number(nota.nota) : undefined,
+    };
+}
+
+/**
+ * Dinâmica: lê a entrega e a nota do professor (rascunho ou confirmada) de cada aluno.
+ * Só leitura.
+ * @param {number} atividadeId - Id da atividade.
+ * @param {Object} memoria - Memória da fonte entre as leituras.
+ * @returns {Promise<Object[]>} Alunos no formato comum, em ordem alfabética.
+ */
+async function lerAlunosDinamica(atividadeId, memoria) {
+    const [entregas, notas] = await Promise.all([
+        sbGet('entrega_dinamica',
+            'select=aluno_id,entregue,entregue_em&atividade_id=eq.' + atividadeId),
+        sbGet('nota_dinamica',
+            'select=aluno_id,nota,confirmada_em&atividade_id=eq.' + atividadeId),
+    ]);
+    const entregaPorAluno = new Map(entregas.map((linha) => [linha.aluno_id, linha]));
+    const notaPorAluno = new Map(notas.map((linha) => [linha.aluno_id, linha]));
+    const ids = [...new Set([...entregaPorAluno.keys(), ...notaPorAluno.keys()])];
+    await carregarNomesDosAlunos(ids, memoria.nomes);
+    return ids.filter((id) => !alunosDesistentesProgresso.has(id))
+        .map((id) => montarAlunoDaDinamica(id, entregaPorAluno.get(id), notaPorAluno.get(id),
+            memoria.nomes))
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+// Textos de cada tipo: a coluna "parcial" vale também antes da entrega; a "final" só com a
+// entrega feita (e, na discursiva, com tudo corrigido pela IA).
+const FONTES_PROGRESSO_TURMA = {
+    [TIPO_PROGRESSO_OBJETIVA]: {
+        lerEstrutura: lerEstruturaObjetiva,
+        lerAlunos: lerAlunosObjetiva,
+        textos: {
+            colunaParcial: 'Nota parcial (acertos)', colunaFinal: 'Nota final', icone: '✔',
+            parte: 'resposta', partes: 'respostas', descricaoAcerto: 'questões respondidas',
+            dicaParcial: 'Nota até agora pelos acertos nas questões respondidas (sobre o ' +
+                'mínimo do aluno, máximo 10), calculada no banco.',
+            dicaFinal: 'Nota da atividade entregue (acertos sobre o mínimo do aluno, máximo 10).',
+            graficoCorrecao: '4. Acertos e erros (questões respondidas)',
+            rotulosCorrecao: ['Certas', 'Meias certas', 'Erradas'],
+            graficoNota: '5. Nota parcial por aluno (acertos)',
+        },
+    },
+    [TIPO_PROGRESSO_DISCURSIVA]: {
+        lerEstrutura: lerEstruturaDiscursiva,
+        lerAlunos: lerAlunosDiscursiva,
+        textos: {
+            colunaParcial: 'Nota parcial IA', colunaFinal: 'Nota final', icone: '🤖',
+            iconeProfessor: '🎓',
+            parte: 'tópico', partes: 'tópicos', descricaoAcerto: 'alternativas corrigidas',
+            dicaParcial: 'Nota parcial sugerida pela IA (sobre o mínimo do aluno, máximo 10) — ' +
+                'prévia; vale só depois da confirmação do professor.',
+            dicaFinal: '🤖 Nota sugerida pela IA com a prova entregue e as respostas corrigidas ' +
+                '(sobre o mínimo do aluno, máximo 10) — vale só depois da confirmação do ' +
+                'professor.',
+            dicaProfessor: '🎓 Nota confirmada pelo professor em todas as questões respondidas ' +
+                '(sobre o mínimo do aluno, máximo 10) — é a que vale na média.',
+            graficoCorrecao: '4. Correção da IA (alternativas)',
+            rotulosCorrecao: ['Certas', 'Meias certas', 'Erradas'],
+            graficoNota: '5. Nota parcial da IA por aluno (a confirmar)',
+        },
+    },
+    [TIPO_PROGRESSO_DINAMICA]: {
+        lerEstrutura: lerEstruturaDinamica,
+        lerAlunos: lerAlunosDinamica,
+        textos: {
+            colunaParcial: 'Rascunho', colunaFinal: 'Nota do professor', icone: '🎯',
+            iconeProfessor: '🎓', parte: 'entrega', partes: 'entregas',
+            descricaoAcerto: 'entrega',
+            dicaParcial: 'Nota lançada pelo professor na Atividade Dinâmica (0 a 10) — vale na ' +
+                'média depois da confirmação.',
+            dicaFinal: 'Nota lançada pelo professor na Atividade Dinâmica (0 a 10) — vale na ' +
+                'média depois da confirmação.',
+            dicaProfessor: 'Nota lançada pelo professor na Atividade Dinâmica (0 a 10) — vale ' +
+                'na média depois da confirmação.',
+            graficoCorrecao: '',
+            rotulosCorrecao: ['Certas', 'Meias certas', 'Erradas'],
+            graficoNota: 'Nota do professor por aluno',
+            semMinimo: true, semIa: true, semEntregaProfessor: true,
+            situacaoPendente: 'Não entregue', unidade: 'entrega',
+        },
+    },
+};
+
+window.FONTES_PROGRESSO_TURMA = FONTES_PROGRESSO_TURMA;
+window.TIPOS_PROGRESSO_TURMA = { objetiva: TIPO_PROGRESSO_OBJETIVA,
+    discursiva: TIPO_PROGRESSO_DISCURSIVA, dinamica: TIPO_PROGRESSO_DINAMICA };

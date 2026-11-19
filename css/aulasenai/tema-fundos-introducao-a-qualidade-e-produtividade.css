@@ -1,0 +1,426 @@
+/*
+ * tema-fundos-introducao-a-qualidade-e-produtividade.css
+ * Complemento do tema para as páginas de atividades desta matéria.
+ * Carregar DEPOIS de temas.css e de tema-global.css (que não é editado aqui).
+ * Seletores começam em html[data-tema] para vencer os CSS de cada página, inclusive os que
+ * entram depois pelo JavaScript (progresso da turma, janelas, popup).
+ * Tudo fica dentro de @media screen: impressão e PDF continuam como eram.
+ *
+ * Fixo de propósito (não segue o tema):
+ *  - verde/vermelho de certo e errado (alternativas, correção, conferência, "acertada");
+ *  - pares de fundo claro + texto escuro de situação (entregue, corrigida, aviso, pontos);
+ *  - estado abaixo do mínimo: rgba(var(--acc-rgb), .22), já definido no tema-global.css;
+ *  - tela desenhada da solução da dinâmica (ilustração em fundo claro);
+ *  - toast de gravação, botões de status do índice (feita, falta, não feita).
+ */
+@media screen {
+
+/* ---------- 1. Variáveis neutras das páginas de atividade ---------- */
+html[data-tema] {
+  color-scheme: dark;
+
+  /* atividade.css */
+  --primary: var(--cyan);
+  --secondary: var(--acc-hover);
+  --gold: var(--cyan);
+  --light: var(--surface2);
+
+  /* respostas-atividade.css: folha de respostas, alternativa marcada, questão pendente */
+  --folha-borda: var(--line);
+  --folha-fundo-cabecalho: var(--surface2);
+  --folha-marca-vazia: var(--dim);
+  --folha-marca-preenchida: var(--cyan);
+  --alternativa-marcada-fundo: rgba(var(--acc-rgb), 0.22);
+  --alternativa-marcada-borda: var(--cyan);
+  --pendente-fundo: rgba(229, 62, 62, 0.16);
+
+  /* capacidades.css: quadro de capacidades */
+  --capacidades-faixa: var(--btn-bg);
+  --capacidades-faixa-texto: var(--on-btn);
+  --capacidades-texto: var(--text);
+  --capacidades-fundo: var(--surface2);
+
+  /* avaliacao-discursiva.css */
+  --discursiva-borda: var(--line);
+  --discursiva-foco: var(--cyan);
+  --discursiva-fundo-campo: var(--surface2);
+  --discursiva-fundo-travado: var(--panel);
+  --discursiva-texto-suave: var(--muted);
+  --discursiva-aula-fundo: rgba(var(--acc-rgb), 0.18);
+  --discursiva-aula-texto: var(--cyan);
+  --discursiva-erro-fundo: rgba(229, 62, 62, 0.16);
+  --discursiva-barra-fundo: var(--panel2);
+
+  /* atividade-dinamica.css */
+  --dinamica-destaque: var(--cyan);
+  --dinamica-fundo: var(--surface2);
+  --dinamica-borda: var(--line);
+
+  /* avaliacao-media-final.css */
+  --media-borda: var(--line);
+  --media-cabecalho: var(--surface2);
+  --media-grupo-atividades: rgba(var(--acc-rgb), 0.1);
+  --media-grupo-objetiva: rgba(var(--acc-rgb), 0.18);
+  --media-grupo-pratica: rgba(var(--acc-rgb), 0.26);
+  --media-total: var(--surface2);
+
+  /* tabela-notas-professor.css */
+  --tabela-notas-borda: var(--line);
+  --tabela-notas-cabecalho: var(--surface2);
+  --tabela-notas-texto-cabecalho: var(--text);
+  --tabela-notas-zebra: var(--panel);
+}
+
+/* ---------- 2. Variáveis dos painéis do professor e das janelas ---------- */
+html[data-tema] {
+  --progresso-turma-nota-ia: var(--cyan);
+  --falta-aluno-texto-suave: var(--muted);
+  --entrega-professor-borda: var(--line);
+  --entrega-professor-suave: var(--muted);
+  --entrega-professor-aviso: var(--cyan);
+  --finalizar-texto-suave: var(--muted);
+  --respostas-aluno-aviso: var(--cyan);
+  --respostas-aluno-chave-fundo: var(--dim);
+  --mostrar-certas-chave-fundo: var(--dim);
+  --liberar-gabarito-aviso: var(--muted);
+  --meu-gabarito-dica: var(--muted);
+  --meu-gabarito-destaque: var(--cyan);
+
+  --graficos-janela: var(--surface);
+  --graficos-borda: var(--line);
+  --graficos-destaque: var(--cyan);
+  --calculo-janela: var(--surface);
+  --calculo-borda: var(--line);
+  --calculo-texto-suave: var(--muted);
+  --minimo-janela: var(--surface);
+  --minimo-borda: var(--line);
+  --minimo-destaque: var(--cyan);
+  --minimo-texto-suave: var(--muted);
+  --progresso-aula-janela: var(--surface);
+  --progresso-aula-borda: var(--line);
+  --progresso-aula-destaque: var(--cyan);
+  --progresso-aula-texto-suave: var(--muted);
+  --progresso-aula-texto-sobre-destaque: var(--on-acc);
+  --progresso-aula-sem-comecar: var(--panel2);
+
+  --modal-nota-caixa: var(--surface);
+  --modal-nota-texto: var(--text);
+  --modal-nota-borda: var(--line);
+  --modal-nota-destaque: var(--cyan);
+  --modal-nota-suave: var(--muted);
+  --modal-nota-linha: var(--line);
+  --modal-nota-cartao: var(--surface2);
+  --confirmar-borda: var(--line);
+  --confirmar-fundo: var(--surface);
+  --nota-ia-balao-fundo: var(--surface);
+  --nota-ia-balao-texto: var(--text);
+  --nota-ia-balao-borda: var(--cyan);
+  --resultado-balao-borda: var(--cyan);
+
+  --popup-caixa: var(--surface);
+  --popup-texto: var(--text);
+  --popup-azul: var(--cyan);
+  --popup-pergunta: var(--cyan);
+  --popup-info: var(--cyan);
+
+  --crud-fundo: var(--surface);
+  --crud-borda: var(--line);
+  --crud-texto: var(--text);
+  --crud-suave: var(--muted);
+  --crud-azul: var(--cyan);
+  --log-fundo: var(--surface);
+  --log-texto: var(--text);
+  --log-borda: var(--line);
+  --log-cinza: var(--panel2);
+  --log-azul: var(--cyan);
+  --equipes-azul: var(--cyan);
+  --equipes-fundo: var(--surface);
+  --equipes-fundo-suave: var(--surface2);
+  --equipes-borda: var(--line);
+  --equipes-texto: var(--text);
+  --equipes-suave: var(--muted);
+  --equipes-destaque: var(--panel2);
+
+  --aula-data-botao-fundo: var(--panel2);
+  --aula-data-botao-borda: var(--cyan);
+  --aula-id-card-cor: var(--muted);
+  --gerenciar-aulas-botao: var(--surface2);
+  --gerenciar-aulas-botao-texto: var(--text);
+  --gerenciar-aulas-barra-fundo: var(--panel);
+  --gerenciar-aulas-barra-borda: var(--cyan);
+}
+
+/* ---------- 3. Voltar, id da atividade, rodapé e quadro de capacidades ---------- */
+html[data-tema] .container > header .voltar,
+html[data-tema] .atividade-id-titulo {
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--on-btn);
+}
+
+html[data-tema] .container > header .voltar:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+html[data-tema] footer {
+  background: var(--side-solid);
+  color: var(--text);
+  border-top: 1px solid var(--line);
+}
+
+html[data-tema] .quadro-capacidades {
+  border: 1px solid var(--line);
+}
+
+/* ---------- 4. Alternativas: foco do mouse, marcada e correção ---------- */
+html[data-tema] .questao .alternativas li:hover {
+  background: var(--panel2);
+}
+
+html[data-tema] .atividade--entregue .questao .alternativas li:hover {
+  background: var(--panel);
+}
+
+/* Certo e errado ficam em verde/vermelho claro fixos; o texto vira escuro para ler bem */
+html[data-tema] .aula-card.questao .alternativas li:is(
+  .alternativa--acertou, .alternativa--errou, .conferencia--certa, .conferencia--errada) {
+  color: #1a202c;
+}
+
+html[data-tema] .aula-card.questao .alternativas li:is(
+  .alternativa--acertou, .alternativa--errou, .conferencia--certa, .conferencia--errada) .letra {
+  color: inherit;
+}
+
+/* ---------- 5. Identificação, folha de respostas ("Respondidas") e botões ---------- */
+html[data-tema] .identificacao-estudante__rotulo,
+html[data-tema] .identificacao-estudante__texto,
+html[data-tema] .folha-respostas__contagem {
+  color: var(--text);
+}
+
+html[data-tema] .folha-respostas__senai {
+  background: var(--btn-bg);
+  color: var(--on-btn);
+}
+
+html[data-tema] .folha-respostas__nome {
+  background: transparent;
+  color: var(--text);
+  border-bottom-color: var(--dim);
+}
+
+html[data-tema] table tbody tr.folha-respostas__linha--pendente td {
+  background: var(--pendente-fundo);
+}
+
+html[data-tema] .btn-export:hover:not(:disabled) {
+  background: var(--btn-bg-h);
+  color: var(--on-btn);
+}
+
+html[data-tema] .btn-export.btn-export--secundario,
+html[data-tema] .btn-export.bloqueio-horario--desligado {
+  background: var(--surface2);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* ---------- 6. Campos de texto, números e áreas de resposta ---------- */
+html[data-tema] textarea,
+html[data-tema] input:not([type]),
+html[data-tema] input:is([type="text"], [type="number"], [type="time"], [type="date"],
+  [type="search"], [type="email"], [type="password"], [type="datetime-local"]) {
+  background-color: var(--surface3);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+html[data-tema] textarea::placeholder,
+html[data-tema] input::placeholder {
+  color: var(--dim);
+}
+
+/* ---------- 7. Relatório do professor e painel de progresso ---------- */
+html[data-tema] .relatorio-professor__chave {
+  background: var(--dim);
+}
+
+html[data-tema] .relatorio-professor__nota-oculta,
+html[data-tema] .relatorio-professor__resumo {
+  color: var(--muted);
+}
+
+html[data-tema] .progresso-turma__graficos {
+  color: var(--on-acc);
+}
+
+html[data-tema] .correcao-ia {
+  border-color: var(--cyan);
+  color: var(--text);
+}
+
+html[data-tema] .correcao-ia__botao {
+  background: var(--btn-bg);
+  color: var(--on-btn);
+}
+
+/* ---------- 8. Popup, janelas, carregando e botões das janelas ---------- */
+html[data-tema] .popup__botao {
+  background: var(--btn-bg);
+  color: var(--on-btn);
+}
+
+html[data-tema] .popup__botao.popup__botao--claro {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+html[data-tema] .modal-nota__botao--principal {
+  background: var(--btn-bg);
+  color: var(--on-btn);
+}
+
+html[data-tema] .sessao-carregando__caixa {
+  background: var(--surface);
+}
+
+html[data-tema] .sessao-carregando__texto {
+  color: var(--cyan);
+}
+
+html[data-tema] .crud-btn {
+  background: var(--surface2);
+}
+
+html[data-tema] .crud-btn.crud-btn--principal {
+  background: var(--btn-bg);
+  color: var(--on-btn);
+}
+
+html[data-tema] .crud-editar-atividade,
+html[data-tema] .crud-id-atividade {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+/* ---------- 9. Avaliação discursiva (prática), dinâmica e média final ---------- */
+html[data-tema] .topico-resposta__campo {
+  background-color: var(--surface3);
+  color: var(--text);
+}
+
+html[data-tema] .topico-resposta__campo[readonly] {
+  background-color: var(--panel);
+}
+
+html[data-tema] .dinamica__botao {
+  background: var(--btn-bg);
+  color: var(--on-btn);
+}
+
+html[data-tema] .dinamica__solucao-svg {
+  background: #f7fafc;
+}
+
+html[data-tema] .dinamica__tabela th,
+html[data-tema] .media-tabela thead th {
+  color: var(--text);
+}
+
+html[data-tema] .media-combo select,
+html[data-tema] .dinamica__combo {
+  background-color: var(--surface);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+/* ---------- 10. Índice das atividades: cartão de notas, chaves e situação do cartão ---------- */
+html[data-tema] .card-notas-media {
+  --notas-borda: var(--line);
+  --notas-zebra: var(--panel);
+  background: var(--surface);
+  color: var(--text);
+  border-left-color: var(--cyan);
+}
+
+html[data-tema] .card-notas-media__selecao {
+  background: var(--surface2);
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+html[data-tema] .card-notas-media__combo,
+html[data-tema] .card-notas-media__filtro-rotulo,
+html[data-tema] .card-notas-media__vazio {
+  color: var(--muted);
+}
+
+html[data-tema] .card-notas-media__combo select:hover,
+html[data-tema] .card-notas-media__combo select:focus-visible {
+  background-color: var(--surface2);
+}
+
+html[data-tema] .card-notas-media__tabela {
+  background: var(--surface2);
+}
+
+html[data-tema] .card-notas-media__tabela th {
+  background: var(--panel2);
+  color: var(--muted);
+}
+
+html[data-tema] .card-notas-media__peso {
+  background: var(--surface3);
+  color: var(--text);
+}
+
+html[data-tema] .card-notas-media__aviso {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--cyan);
+}
+
+html[data-tema] .card-notas-media__aviso.card-notas-media__aviso--erro {
+  background: rgba(229, 62, 62, 0.16);
+  border-color: #c53030;
+}
+
+html[data-tema] .interruptor-aula {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+html[data-tema] .filtro-feitas {
+  color: var(--text);
+}
+
+/* Cartão da aula: pendente (vermelho piscando) e concluída (verde) em tons que leem com o tema */
+html[data-tema] article.aula.card-atividade-concluida {
+  background: rgba(56, 161, 105, 0.22);
+}
+
+html[data-tema] article.aula.card-atividade-pendente {
+  background: rgba(229, 62, 62, 0.22);
+  animation-name: tema-atividade-pendente-piscar;
+}
+
+@keyframes tema-atividade-pendente-piscar {
+  0%, 100% { background-color: rgba(229, 62, 62, 0.34); }
+  50% { background-color: rgba(229, 62, 62, 0.12); }
+}
+
+html[data-tema] body.indice-aluno-so-botoes article.aula.card-atividade-concluida,
+html[data-tema] body.indice-aluno-so-botoes article.aula.card-atividade-pendente {
+  background: var(--surface);
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-tema] article.aula.card-atividade-pendente {
+    animation: none;
+  }
+}
+
+}

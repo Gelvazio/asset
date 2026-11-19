@@ -1,0 +1,59 @@
+/* Modal de configurações do professor (assets/js/config-professor.js). Prefixo config-professor__. */
+:root {
+  --config-cor-fundo: rgba(0, 0, 0, 0.55);
+  --config-cor-caixa: #fff;
+  --config-cor-texto: #1f2937;
+  --config-cor-destaque: #f7941d;
+  --config-cor-borda: #d1d5db;
+  --config-margem: 16px;
+}
+.config-professor__fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--config-margem);
+  background: var(--config-cor-fundo);
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+.config-professor__caixa {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 420px;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--surface, var(--config-cor-caixa));
+  color: var(--text, var(--config-cor-texto));
+  border: 1px solid var(--line, transparent);
+  border-radius: 8px;
+}
+/* Variante menor da caixa: modal só com o seletor de tema. */
+.config-professor__caixa--tema { max-width: 300px; }
+.config-professor__titulo { margin: 0 0 16px; font-size: 18px; }
+.config-professor__campo { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.config-professor__rotulo { font-weight: 700; font-size: 14px; }
+.config-professor__seletor {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px;
+  font: inherit;
+  font-size: 16px;
+  color: var(--text, inherit);
+  background: var(--surface2, #fff);
+  border: 1px solid var(--line, var(--config-cor-borda));
+  border-radius: 4px;
+}
+.config-professor__botao {
+  padding: 8px 16px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--on-btn, #fff);
+  background: var(--btn-bg, var(--config-cor-destaque));
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+}
+.config-professor__erro { margin: 0; color: #b91c1c; font-size: 14px; }

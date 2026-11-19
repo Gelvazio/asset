@@ -1,0 +1,81 @@
+/* Header do usuário logado (js/header-usuario.js). Classes com prefixo header-usuario__. */
+#header-usuario { display: block; width: 100%; font-family: "Segoe UI", Arial, sans-serif; }
+.header-usuario__barra {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    padding: 8px 20px;
+    background: #004384;
+    color: #fff;
+    font-size: 14px;
+    border-bottom: 3px solid #f7941d;
+}
+.header-usuario__nome { font-weight: 600; }
+.header-usuario__botao {
+    background: #f7941d;
+    color: #fff;
+    border: none;
+    border-radius: 16px;
+    padding: 6px 16px;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+}
+.header-usuario__botao:hover { background: #d97706; }
+@media print { #header-usuario { display: none; } }
+.header-usuario__home { margin-right: auto; }
+/* O menu ocupa o espaço livre da barra e empilha as linhas, centralizadas. */
+.header-usuario__menu { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.header-usuario__menu:empty { display: none; }
+.header-usuario__menu-linha { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.header-usuario__menu-link {
+    flex: 1;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    padding: 5px 16px;
+    border: 2px solid #f7941d;
+    border-radius: 4px;
+    text-align: center;
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+.header-usuario__menu-link:hover { background: #f7941d; }
+button.header-usuario__menu-link { background: transparent; font-family: inherit; cursor: pointer; }
+
+/* Celular: a barra quebra em linhas em vez de passar da largura da tela. */
+@media (max-width: 600px) {
+    .header-usuario__barra { flex-wrap: wrap; gap: 8px; padding: 8px 10px; font-size: 14px; }
+    .header-usuario__nome { flex: 1 1 100%; order: -1; overflow-wrap: anywhere; }
+    .header-usuario__home { margin-right: 0; }
+    .header-usuario__menu { flex: 1 1 100%; gap: 6px; }
+    .header-usuario__menu-linha { gap: 6px; }
+    .header-usuario__menu-link { padding: 6px 12px; font-size: 13px; }
+    .header-usuario__botao { padding: 8px 16px; }
+}
+/* Modal "Aguarde, carregando..." do guarda de sessão (página oculta até confirmar o login). */
+.sessao-carregando {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 67, 132, 0.35);
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+.sessao-carregando__caixa {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 28px 40px;
+    background: #fff;
+    border-top: 4px solid #f7941d;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+.sessao-carregando__gif { width: 64px; height: 64px; }
+.sessao-carregando__texto { margin: 0; color: #004384; font-size: 16px; font-weight: 700; }

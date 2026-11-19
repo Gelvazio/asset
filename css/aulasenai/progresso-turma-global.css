@@ -1,0 +1,514 @@
+/* Professor: Progresso da turma GLOBAL em toda atividade com banco (progresso-turma-global.js) */
+
+:root {
+    --progresso-turma-borda: #cbd5e0;
+    --progresso-turma-fundo: #ffffff;
+    --progresso-turma-texto-suave: #4a5568;
+    --progresso-turma-barra-fundo: #e2e8f0;
+    --progresso-turma-barra: #667eea;
+    --progresso-turma-geral: #2b6cb0;
+    --progresso-turma-entregue: #38a169;
+    --progresso-turma-vazia-fundo: #edf2f7;
+    --progresso-turma-vazia-texto: #a0aec0;
+    --progresso-turma-andamento-fundo: #fefcbf;
+    --progresso-turma-andamento-texto: #744210;
+    --progresso-turma-completa-fundo: #c6f6d5;
+    --progresso-turma-completa-texto: #22543d;
+    --progresso-turma-nota-ia: #6b46c1;
+    --progresso-turma-raio: 8px;
+    --progresso-turma-confirmar: #2f855a;
+    --progresso-turma-confirmar-fundo: #f0fff4;
+    --progresso-turma-confirmar-texto: #276749;
+    --progresso-turma-chave-fundo: #cbd5e0;
+    --progresso-turma-chave-ligada: #2b6cb0;
+    --progresso-turma-chave-bolinha: #ffffff;
+    --progresso-turma-chave-largura: 30px;
+    --progresso-turma-chave-altura: 16px;
+    --progresso-turma-bolinha: 12px;
+}
+
+.progresso-turma {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 16px 40px;
+    padding: 16px;
+    border: 2px solid var(--progresso-turma-barra);
+    border-radius: var(--progresso-turma-raio);
+    background: var(--progresso-turma-fundo);
+}
+
+.progresso-turma__cabecalho {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+/* "Mostrar quadro" desligado: só a linha do título fica; o resto da seção some. */
+.progresso-turma--recolhido > :not(.progresso-turma__cabecalho) {
+    display: none;
+}
+
+.progresso-turma__botoes-cabecalho {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.progresso-turma__graficos {
+    padding: 6px 14px;
+    border: 1px solid var(--progresso-turma-barra);
+    border-radius: var(--progresso-turma-raio);
+    background: var(--progresso-turma-barra);
+    color: var(--progresso-turma-fundo);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.progresso-turma__titulo {
+    margin: 0;
+    font-size: 18px;
+}
+
+.progresso-turma__legenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* Combo "Turma" ao lado do título (alunos-da-turma-progresso.js). */
+.progresso-turma__turma {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.progresso-turma__turma-opcoes {
+    padding: 4px 8px;
+    border: 1px solid var(--progresso-turma-borda);
+    border-radius: var(--progresso-turma-raio);
+    background: var(--progresso-turma-fundo);
+    font-size: 13px;
+}
+
+/* Chave ON/OFF dos filtros e botões do painel ("Tarefa Entregue?", "Faltou?"...). */
+.progresso-turma__interruptor {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* A caixa fica invisível: quem aparece é a chave ao lado. */
+.progresso-turma__interruptor input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.progresso-turma__interruptor-chave {
+    position: relative;
+    flex: none;
+    width: var(--progresso-turma-chave-largura);
+    height: var(--progresso-turma-chave-altura);
+    border-radius: var(--progresso-turma-chave-altura);
+    background: var(--progresso-turma-chave-fundo);
+    transition: background 0.2s;
+}
+
+.progresso-turma__interruptor-chave::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: var(--progresso-turma-bolinha);
+    height: var(--progresso-turma-bolinha);
+    border-radius: 50%;
+    background: var(--progresso-turma-chave-bolinha);
+    transition: transform 0.2s;
+}
+
+.progresso-turma__interruptor input:checked + .progresso-turma__interruptor-chave {
+    background: var(--progresso-turma-chave-ligada);
+}
+
+.progresso-turma__interruptor input:checked + .progresso-turma__interruptor-chave::after {
+    transform: translateX(
+        calc(var(--progresso-turma-chave-largura) - var(--progresso-turma-bolinha) - 4px));
+}
+
+.progresso-turma__interruptor input:disabled + .progresso-turma__interruptor-chave {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.progresso-turma__interruptor input:focus-visible + .progresso-turma__interruptor-chave {
+    outline: 2px solid var(--progresso-turma-chave-ligada);
+    outline-offset: 2px;
+}
+
+/* Filtro "Questões respondidas" (filtro-respondidas-progresso.js). */
+.progresso-turma__filtro {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.progresso-turma__filtro-opcoes {
+    padding: 4px 8px;
+    border: 1px solid var(--progresso-turma-borda);
+    border-radius: var(--progresso-turma-raio);
+    background: var(--progresso-turma-fundo);
+    font-size: 13px;
+}
+
+/* "Mostrando N de T alunos": a lista depois de todos os filtros. */
+.progresso-turma__contagem {
+    font-size: 13px;
+    color: var(--progresso-turma-texto-suave);
+}
+
+.progresso-turma__geral {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.progresso-turma__resumo {
+    font-size: 13px;
+    color: var(--progresso-turma-texto-suave);
+}
+
+.progresso-turma__lista {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.progresso-turma__linha {
+    display: grid;
+    /* Larguras fixas (só Questões é flexível): as colunas ficam alinhadas em todas as linhas. */
+    grid-template-columns: 220px minmax(0, 1fr) 70px 150px 150px 120px;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+}
+
+.progresso-turma__linha > * {
+    min-width: 0;
+}
+
+/* Uma linha horizontal separa um aluno do seguinte (nenhuma depois do último). */
+.progresso-turma__linha:not(.progresso-turma__linha--titulos) {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--progresso-turma-borda);
+}
+
+.progresso-turma__linha:not(.progresso-turma__linha--titulos):last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.progresso-turma__linha--titulos {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--progresso-turma-texto-suave);
+}
+
+.progresso-turma__nota-ia {
+    font-weight: 700;
+    text-align: right;
+    color: var(--progresso-turma-nota-ia);
+}
+
+.progresso-turma__ordenar {
+    padding: 2px 4px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.progresso-turma__ordenar:hover {
+    background: var(--progresso-turma-barra-fundo);
+}
+
+.progresso-turma__nota-ia--parcial {
+    font-weight: 600;
+    opacity: 0.85;
+}
+
+.progresso-turma__nota-ia--vazia {
+    color: var(--progresso-turma-texto-suave);
+}
+
+.progresso-turma__celula-nome {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+}
+
+.progresso-turma__minimo {
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid var(--progresso-turma-borda);
+    border-radius: var(--progresso-turma-raio);
+    background: var(--progresso-turma-fundo);
+    color: var(--progresso-turma-texto-suave);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+/* "Reabrir Correção" (reabrir-correcao-aluno-progresso.js) segue o mesmo visual dos botões abaixo.
+   "✅ Confirmar Todas" das discursivas (confirmar-todas-professor.js; desativado sem entrega) e
+   "📨 Confirmar Entrega" de todas as atividades (confirmar-entrega-professor.js). */
+.progresso-turma__confirmar-todas,
+.progresso-turma__confirmar-entrega,
+.progresso-turma__confirmar-toda-correcao-ia,
+.progresso-turma__reabrir-correcao {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid var(--progresso-turma-confirmar);
+    border-radius: var(--progresso-turma-raio);
+    background: var(--progresso-turma-confirmar-fundo);
+    color: var(--progresso-turma-confirmar-texto);
+    font: inherit;
+    font-size: 14px;
+    text-align: center;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+/* "✅ CONFIRMAR TODA CORREÇÃO DE IA" acima da coluna Aluno (confirmar-toda-correcao-ia-
+   progresso.js): à esquerda, largura do conteúdo, com margem embaixo. */
+.progresso-turma__faixa-confirmar-correcao-ia {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: flex-start;
+}
+
+.progresso-turma__selecionar-todos {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.progresso-turma__linha-nome {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+
+.progresso-turma__confirmar-toda-correcao-ia {
+    width: auto;
+    margin-bottom: 10px;
+    padding: 8px 18px;
+}
+
+.progresso-turma__confirmar-todas:disabled,
+.progresso-turma__confirmar-entrega:disabled,
+.progresso-turma__confirmar-toda-correcao-ia:disabled,
+.progresso-turma__reabrir-correcao:disabled {
+    border-color: var(--progresso-turma-borda);
+    background: var(--progresso-turma-fundo);
+    color: var(--progresso-turma-texto-suave);
+    cursor: not-allowed;
+}
+
+.progresso-turma__minimo--proprio {
+    border-color: var(--progresso-turma-barra);
+    color: var(--progresso-turma-barra);
+    font-weight: 700;
+}
+
+.progresso-turma__minimo:hover:not(:disabled) {
+    border-color: var(--progresso-turma-barra);
+    background: var(--progresso-turma-vazia-fundo);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.progresso-turma__confirmar-todas:hover:not(:disabled),
+.progresso-turma__confirmar-entrega:hover:not(:disabled),
+.progresso-turma__confirmar-toda-correcao-ia:hover:not(:disabled),
+.progresso-turma__reabrir-correcao:hover:not(:disabled) {
+    background: var(--progresso-turma-completa-fundo);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    filter: brightness(0.95);
+}
+
+.progresso-turma__minimo:active:not(:disabled),
+.progresso-turma__confirmar-todas:active:not(:disabled),
+.progresso-turma__confirmar-entrega:active:not(:disabled),
+.progresso-turma__confirmar-toda-correcao-ia:active:not(:disabled) {
+    box-shadow: none;
+    transform: translateY(1px);
+}
+
+.progresso-turma__minimo:disabled {
+    cursor: not-allowed;
+}
+
+.progresso-turma__nome {
+    max-width: 100%;
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.progresso-turma__questoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+
+.progresso-turma__questao {
+    min-width: 24px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.progresso-turma__questao--vazia {
+    background: var(--progresso-turma-vazia-fundo);
+    color: var(--progresso-turma-vazia-texto);
+}
+
+.progresso-turma__questao--andamento {
+    background: var(--progresso-turma-andamento-fundo);
+    color: var(--progresso-turma-andamento-texto);
+}
+
+.progresso-turma__questao--completa {
+    background: var(--progresso-turma-completa-fundo);
+    color: var(--progresso-turma-completa-texto);
+}
+
+.progresso-turma__bloco-barra {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.progresso-turma__percentual {
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    color: var(--progresso-turma-texto-suave);
+}
+
+.progresso-turma__barra {
+    height: 12px;
+    overflow: hidden;
+    border-radius: var(--progresso-turma-raio);
+    background: var(--progresso-turma-barra-fundo);
+}
+
+.progresso-turma__barra-preenchida {
+    height: 100%;
+    background: var(--progresso-turma-barra);
+    transition: width 0.4s ease;
+}
+
+.progresso-turma__barra--geral {
+    height: 16px;
+}
+
+.progresso-turma__barra--geral .progresso-turma__barra-preenchida {
+    background: var(--progresso-turma-geral);
+}
+
+.progresso-turma__barra--entregue .progresso-turma__barra-preenchida {
+    background: var(--progresso-turma-entregue);
+}
+
+.progresso-turma__situacao {
+    font-weight: 600;
+    text-align: right;
+}
+
+@media (max-width: 700px) {
+    .progresso-turma__linha {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+
+    .progresso-turma__situacao,
+    .progresso-turma__nota-ia {
+        text-align: left;
+    }
+
+    .progresso-turma__linha--titulos {
+        display: none;
+    }
+}
+
+/* O quadro fica fora do .content-section; a margem lateral acompanha o padding dele
+   (atividade.css: 40px, 20px em <=768px, 10px em <=600px). */
+@media (max-width: 768px) {
+    .progresso-turma { margin-left: 20px; margin-right: 20px; }
+}
+
+@media (max-width: 600px) {
+    .progresso-turma { margin-left: 10px; margin-right: 10px; }
+}
+
+@media print {
+    .progresso-turma {
+        display: none;
+    }
+}
+
+/* PAINEL SIMPLES (assets/js/painel-simples-progresso.js): só Aluno, Lançado AVA e Nota. */
+.progresso-turma__painel-simples {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.progresso-turma__painel-simples th,
+.progresso-turma__painel-simples td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--progresso-turma-borda);
+}
+
+.progresso-turma__painel-simples th {
+    font-size: 12px;
+    color: var(--progresso-turma-texto-suave);
+}
+
+.progresso-turma__painel-simples th:last-child,
+.progresso-turma__painel-simples td:last-child {
+    text-align: right;
+}

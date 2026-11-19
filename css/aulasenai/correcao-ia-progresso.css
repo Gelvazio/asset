@@ -1,0 +1,130 @@
+/* Painel "Correção de IA" do Progresso da turma (assets/js/correcao-ia-progresso.js). */
+
+/* Em cima: filtros à esquerda, painel à direita deles (abaixo do cabeçalho, sem cobrir nada). */
+.correcao-ia-topo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.correcao-ia-topo__filtros {
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.correcao-ia {
+    display: flex;
+    flex: 1 1 380px;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 16px 20px;
+    border: 2px solid var(--progresso-turma-botao, #2b6cb0);
+    border-radius: 12px;
+    background: var(--progresso-turma-fundo, #ffffff);
+    box-shadow: 0 0 0 0 rgba(43, 108, 176, 0.45);
+    font-size: 15px;
+    text-align: center;
+    color: var(--progresso-turma-texto, #2d3748);
+    animation: correcao-ia-brilho 2s ease-in-out infinite;
+}
+
+.correcao-ia__botao {
+    width: 100%;
+    min-height: 48px;
+    padding: 10px 18px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--progresso-turma-botao, #2b6cb0);
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    animation: correcao-ia-piscar 1.2s ease-in-out infinite;
+}
+
+.correcao-ia__botao:hover {
+    background: var(--progresso-turma-botao-hover, #2c5282);
+    animation: none;
+}
+
+.correcao-ia__botao:disabled {
+    cursor: wait;
+    animation: none;
+    opacity: 0.7;
+}
+
+.correcao-ia__linha {
+    width: 100%;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.correcao-ia__linha--pendente {
+    color: #c05621;
+    animation: correcao-ia-piscar 0.9s ease-in-out infinite;
+}
+
+.correcao-ia__mensagem {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--progresso-turma-botao, #2b6cb0);
+}
+
+@keyframes correcao-ia-piscar {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+}
+
+@keyframes correcao-ia-brilho {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(43, 108, 176, 0.45); }
+    50% { box-shadow: 0 0 14px 4px rgba(43, 108, 176, 0.45); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .correcao-ia,
+    .correcao-ia__botao,
+    .correcao-ia__linha--pendente {
+        animation: none;
+    }
+}
+
+/* Prompt pronto para copiar e colar em uma IA (correcao-ia-progresso.js). */
+.correcao-ia__prompt {
+    position: relative;
+    width: 100%;
+    margin-top: 10px;
+    text-align: left;
+}
+
+.correcao-ia__prompt-copiar {
+    display: block;
+    margin: 0 0 6px auto;
+    padding: 4px 12px;
+    border: 1px solid var(--correcao-ia-borda, #cbd5e0);
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.correcao-ia__prompt-texto {
+    max-height: 170px;
+    margin: 0;
+    padding: 10px 12px;
+    overflow: auto;
+    border: 1px solid var(--correcao-ia-borda, #cbd5e0);
+    border-radius: 8px;
+    font: inherit;
+    font-size: 12px;
+    white-space: pre-wrap;
+    user-select: all;
+}

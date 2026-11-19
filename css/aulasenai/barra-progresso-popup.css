@@ -1,0 +1,85 @@
+/* Janela com barra de progresso (assets/js/barra-progresso-popup.js). */
+
+:root {
+    --barra-popup-fundo: #ffffff;
+    --barra-popup-texto: #2d3748;
+    --barra-popup-trilho: #e2e8f0;
+    --barra-popup-enchimento: #38a169;
+    --barra-popup-sucesso: #276749;
+    --barra-popup-aviso: #975a16;
+    --barra-popup-erro: #c53030;
+    --barra-popup-botao: #667eea;
+    --barra-popup-raio: 12px;
+}
+
+.barra-progresso-popup {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.barra-progresso-popup__caixa {
+    width: min(480px, 90vw);
+    padding: 24px;
+    border-radius: var(--barra-popup-raio);
+    background: var(--barra-popup-fundo);
+    color: var(--barra-popup-texto);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3);
+    text-align: center;
+}
+
+.barra-progresso-popup__titulo {
+    margin: 0 0 16px;
+    font-size: 18px;
+}
+
+.barra-progresso-popup__trilho {
+    height: 16px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--barra-popup-trilho);
+}
+
+.barra-progresso-popup__enchimento {
+    width: 0;
+    height: 100%;
+    background: var(--barra-popup-enchimento);
+    transition: width 0.2s;
+}
+
+.barra-progresso-popup__texto {
+    margin: 12px 0 0;
+    font-size: 14px;
+    white-space: pre-line;
+}
+
+.barra-progresso-popup__resultado {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.barra-progresso-popup__resultado--sucesso { color: var(--barra-popup-sucesso); }
+.barra-progresso-popup__resultado--aviso { color: var(--barra-popup-aviso); }
+.barra-progresso-popup__resultado--erro { color: var(--barra-popup-erro); }
+
+.barra-progresso-popup__ok {
+    margin-top: 16px;
+    padding: 8px 28px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--barra-popup-botao);
+    color: #ffffff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .barra-progresso-popup__enchimento {
+        transition: none;
+    }
+}

@@ -1,0 +1,30 @@
+/* Aviso discreto (assets/js/aviso-discreto.js): faixa pequena no canto de baixo, que some
+   sozinha. Não bloqueia cliques na página (pointer-events: none). */
+.aviso-discreto {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 9000;
+    max-width: min(360px, calc(100vw - 32px));
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #1a202c;
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 1.4;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.aviso-discreto--visivel {
+    opacity: 0.95;
+    transform: none;
+}
+
+/* Quem pede menos movimento: o aviso aparece e some sem deslizar nem esmaecer. */
+@media (prefers-reduced-motion: reduce) {
+    .aviso-discreto { transition: none; transform: none; }
+}

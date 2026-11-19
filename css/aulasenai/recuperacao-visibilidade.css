@@ -1,0 +1,19 @@
+/* Atividade de recuperação (assets/js/recuperacao-visibilidade.js): esconde o botão no índice e o
+   conteúdo da página para o aluno que não está em recuperação. O banco continua sendo a defesa
+   final (RLS); isto só evita mostrar o que ele não pode abrir. */
+
+a.btn.atividade--recuperacao-oculta,
+.aula a.btn.atividade--recuperacao-oculta,
+.aula .acoes a.btn.atividade--recuperacao-oculta {
+    display: none;
+}
+
+/* Enquanto o banco é consultado (página com "recuperacao" no nome), o conteúdo fica escondido. */
+body[data-recuperacao-conferindo] .container > :not(header) {
+    display: none;
+}
+
+/* Página bloqueada: só o cabeçalho e o aviso aparecem. */
+body[data-recuperacao-bloqueada] .container > :not(header):not(.aviso-recuperacao) {
+    display: none;
+}

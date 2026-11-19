@@ -1,0 +1,46 @@
+/* Card de controle da atividade (CARD-CONTROLE-ATIVIDADE-16-11-2026): professor e aluno */
+.controle-atividade {
+    margin: 12px 40px; padding: 12px 14px; border: 2px solid #1f3864; border-radius: 10px;
+    background: #f3f6fb; color: #1f2937;
+}
+.controle-atividade__titulo { margin: 0 0 6px; font-weight: 700; font-size: 1.05rem; }
+.controle-atividade__estado { margin: 0 0 8px; font-weight: 600; }
+.controle-atividade__botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.controle-atividade__botao {
+    min-height: 40px; padding: 8px 14px; border: 0; border-radius: 8px; font-size: 14px;
+    font-weight: 700; color: #fff; cursor: pointer;
+}
+.controle-atividade__botao:hover:not(:disabled) { filter: brightness(1.1); }
+.controle-atividade__botao:disabled { opacity: 0.5; cursor: not-allowed; }
+.controle-atividade__botao--iniciar { background: #15803d; }
+.controle-atividade__botao--pausar { background: #b45309; }
+.controle-atividade__botao--finalizar { background: #b91c1c; }
+.controle-atividade__aviso { margin: 8px 0 0; font-size: 0.9rem; }
+/* Mesma margem lateral do quadro de progresso e do .content-section */
+@media (max-width: 768px) {
+    .controle-atividade { margin-left: 20px; margin-right: 20px; }
+}
+@media (max-width: 600px) {
+    .controle-atividade { margin-left: 10px; margin-right: 10px; }
+}
+.controle-atividade-aluno__faixa {
+    position: sticky; top: 0; z-index: 900; margin: 0; padding: 10px 16px;
+    background: #7f1d1d; color: #fff; font-weight: 700; text-align: center;
+}
+.controle-atividade-aluno__cobertura {
+    position: fixed; inset: 0; z-index: 9100; display: flex; align-items: center;
+    justify-content: center; padding: 24px; background: rgba(15, 23, 42, 0.94); color: #fff;
+    font-size: 1.4rem; font-weight: 700; text-align: center; line-height: 1.5;
+}
+/* Sem início ou pausada (CARD-CONTROLE-ATIVIDADE-16-11-2026.7): banner piscando no topo */
+.controle-atividade-aluno__aguarde {
+    position: sticky; top: 0; z-index: 900; margin: 0; padding: 14px 16px;
+    background: #b45309; color: #fff; font-size: 1.2rem; font-weight: 800; text-align: center;
+    animation: controle-atividade-piscar 1s steps(2, start) infinite;
+}
+@keyframes controle-atividade-piscar {
+    to { background: #7c2d12; color: #fde68a; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .controle-atividade-aluno__aguarde { animation: none; border-bottom: 4px solid #7c2d12; }
+}

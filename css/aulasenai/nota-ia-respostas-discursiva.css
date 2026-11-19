@@ -1,0 +1,90 @@
+/* Professor: nota parcial da IA ao lado de cada alternativa (nota-ia-respostas-discursiva.js). */
+
+:root {
+    --nota-ia-certa-fundo: #c6f6d5;
+    --nota-ia-certa-texto: #22543d;
+    --nota-ia-meia-fundo: #fefcbf;
+    --nota-ia-meia-texto: #744210;
+    --nota-ia-errada-fundo: #fed7d7;
+    --nota-ia-errada-texto: #742a2a;
+    --nota-ia-pendente-fundo: #edf2f7;
+    --nota-ia-pendente-texto: #4a5568;
+    --nota-ia-balao-fundo: #ffffff;
+    --nota-ia-balao-texto: #1a202c;
+    --nota-ia-balao-borda: #667eea;
+    --nota-ia-balao-sombra: rgba(26, 32, 44, 0.25);
+}
+
+.nota-ia-resposta {
+    position: relative;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: help;
+}
+
+.nota-ia-resposta--certa {
+    background: var(--nota-ia-certa-fundo);
+    color: var(--nota-ia-certa-texto);
+}
+
+.nota-ia-resposta--meia {
+    background: var(--nota-ia-meia-fundo);
+    color: var(--nota-ia-meia-texto);
+}
+
+.nota-ia-resposta--errada {
+    background: var(--nota-ia-errada-fundo);
+    color: var(--nota-ia-errada-texto);
+}
+
+.nota-ia-resposta--pendente {
+    background: var(--nota-ia-pendente-fundo);
+    color: var(--nota-ia-pendente-texto);
+    cursor: default;
+}
+
+/* Balão grande com o porquê da nota (ao passar o mouse ou focar o ícone) */
+.nota-ia-resposta__balao {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    z-index: 50;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    width: min(560px, 85vw);
+    padding: 16px 18px;
+    border: 2px solid var(--nota-ia-balao-borda);
+    border-radius: 12px;
+    background: var(--nota-ia-balao-fundo);
+    color: var(--nota-ia-balao-texto);
+    box-shadow: 0 8px 24px var(--nota-ia-balao-sombra);
+    font-size: 17px;
+    font-weight: 400;
+    line-height: 1.5;
+    white-space: normal;
+    text-align: left;
+}
+
+.nota-ia-resposta:hover .nota-ia-resposta__balao,
+.nota-ia-resposta:focus .nota-ia-resposta__balao {
+    display: flex;
+}
+
+.nota-ia-resposta__balao-titulo {
+    font-size: 18px;
+}
+
+.nota-ia-resposta__balao-nota {
+    color: var(--nota-ia-pendente-texto);
+    font-size: 14px;
+}
+
+@media print {
+    .nota-ia-resposta {
+        display: none;
+    }
+}

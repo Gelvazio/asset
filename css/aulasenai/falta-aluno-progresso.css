@@ -1,0 +1,50 @@
+/* Professor: área "Mostrar quem faltou" do Progresso da turma
+   (assets/js/falta-aluno-progresso.js). A chave ON/OFF é a .progresso-turma__interruptor de
+   progresso-turma-global.css. */
+
+:root {
+    --falta-aluno-texto-suave: #4a5568;
+}
+
+.falta-aluno {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.falta-aluno__contagem {
+    color: var(--falta-aluno-texto-suave);
+}
+
+/* "Faltou?" do aluno: linha própria, largura da célula, alvo de toque grande. As variáveis da
+   chave são redefinidas aqui para aumentar o interruptor sem mexer em progresso-turma-global.css. */
+.progresso-turma__interruptor.falta-aluno__interruptor--aluno {
+    --progresso-turma-chave-largura: 44px;
+    --progresso-turma-chave-altura: 24px;
+    --progresso-turma-bolinha: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 40px;
+    box-sizing: border-box;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease,
+        filter .15s ease;
+}
+
+/* Efeito de mouse: realce visivel sem mudar tamanho nem layout; desativado nao reage. */
+.progresso-turma__interruptor.falta-aluno__interruptor--aluno:hover:not(:disabled) {
+    background-color: rgba(0, 0, 0, .06);
+    border-color: currentColor;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .18);
+    filter: brightness(.94);
+}
+
+.progresso-turma__interruptor.falta-aluno__interruptor--aluno:disabled {
+    cursor: default;
+}

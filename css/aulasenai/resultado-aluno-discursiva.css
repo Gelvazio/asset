@@ -1,0 +1,99 @@
+/* Aluno: prova corrigida depois da liberação do gabarito (resultado-aluno-discursiva.js). */
+
+:root {
+    --resultado-certa-fundo: #c6f6d5;
+    --resultado-certa-texto: #22543d;
+    --resultado-meia-fundo: #fefcbf;
+    --resultado-meia-texto: #744210;
+    --resultado-errada-fundo: #fed7d7;
+    --resultado-errada-texto: #742a2a;
+    --resultado-errada-borda: #e53e3e;
+    --resultado-atencao-fundo: #fffbe0;
+    --resultado-atencao-borda: #ecc94b;
+    --resultado-pendente-fundo: #edf2f7;
+    --resultado-pendente-texto: #4a5568;
+    --resultado-balao-borda: #667eea;
+    --resultado-esperada-fundo: #f0fff4;
+    --resultado-esperada-borda: #38a169;
+}
+
+.resultado-aluno {
+    text-align: center;
+}
+
+.resultado-aluno__nota {
+    margin: 0 0 6px;
+    font-size: 24px;
+}
+
+.resultado-aluno__dica {
+    margin: 0;
+    color: var(--resultado-pendente-texto);
+}
+
+.resultado-aluno__selo {
+    position: relative;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: help;
+}
+
+.resultado-aluno__selo--certa {
+    background: var(--resultado-certa-fundo);
+    color: var(--resultado-certa-texto);
+}
+
+.resultado-aluno__selo--meia {
+    background: var(--resultado-meia-fundo);
+    color: var(--resultado-meia-texto);
+}
+
+.resultado-aluno__selo--errada {
+    background: var(--resultado-errada-fundo);
+    color: var(--resultado-errada-texto);
+}
+
+.resultado-aluno__selo--pendente {
+    background: var(--resultado-pendente-fundo);
+    color: var(--resultado-pendente-texto);
+    cursor: default;
+}
+
+/* Tópico errado: o quadro inteiro fica em amarelo claro para chamar a atenção do aluno. */
+.topico-resposta.resultado-aluno__topico--errado {
+    background: var(--resultado-atencao-fundo);
+    border-color: var(--resultado-atencao-borda);
+}
+
+/* Alternativa errada: explicação e resposta esperada em fundo vermelho claro. */
+.resultado-aluno__esperada.resultado-aluno__caixa--errada,
+.resultado-aluno__explicacao.resultado-aluno__caixa--errada {
+    border-left-color: var(--resultado-errada-borda);
+    background: var(--resultado-errada-fundo);
+    color: var(--resultado-errada-texto);
+}
+
+.resultado-aluno__explicacao {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-left: 4px solid var(--resultado-balao-borda);
+    background: var(--resultado-pendente-fundo);
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.resultado-aluno__justificativa {
+    margin: 6px 0 0;
+    font-weight: 600;
+}
+
+.resultado-aluno__esperada {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-left: 4px solid var(--resultado-esperada-borda);
+    background: var(--resultado-esperada-fundo);
+    font-size: 14px;
+}

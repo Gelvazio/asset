@@ -1,0 +1,181 @@
+/* Aba "Recuperação" do modal de editar atividade (assets/js/atividades-recuperacao-modal.js).
+   Usa os tokens --crud-* de atividades-crud-modal.css. */
+:root {
+    --recuperacao-ligado: #2f855a;
+    --recuperacao-ligado-fundo: rgba(129, 230, 160, 0.35);
+    --recuperacao-ligado-borda: #81e6a0;
+    --recuperacao-desligado: #718096;
+    --recuperacao-lista-altura: 260px;
+    --recuperacao-lista-altura-minima: 96px;
+}
+
+/* O display do .crud-form (grid) vence o atributo hidden: sem isto a aba não esconderia o form. */
+.crud-caixa .crud-form[hidden],
+.recuperacao-painel[hidden],
+.recuperacao-abas[hidden] {
+    display: none;
+}
+
+.recuperacao-abas {
+    display: flex;
+    gap: 4px;
+    margin: 12px 0;
+    border-bottom: 2px solid var(--crud-borda);
+}
+.recuperacao-abas__botao {
+    border: 1px solid var(--crud-borda);
+    border-bottom: 0;
+    border-radius: 8px 8px 0 0;
+    background: #f4f6fb;
+    color: var(--crud-suave);
+    padding: 8px 16px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+.recuperacao-abas__botao--ativo {
+    background: var(--crud-azul);
+    border-color: var(--crud-azul);
+    color: #fff;
+}
+.recuperacao-abas__botao:focus-visible { outline: 2px solid var(--crud-azul); outline-offset: 2px; }
+
+.recuperacao-painel { display: grid; gap: 12px; }
+
+/* Aba aberta: a caixa não rola (sem barra dupla); só a lista de alunos rola e o rodapé com
+   Salvar e Fechar fica sempre visível embaixo. */
+.crud-caixa--recuperacao {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.crud-caixa--recuperacao .recuperacao-painel {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+.crud-caixa--recuperacao .recuperacao-alunos {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+.crud-caixa--recuperacao .recuperacao-alunos__lista {
+    flex: 1 1 auto;
+    min-height: var(--recuperacao-lista-altura-minima);
+    max-height: none;
+    align-content: start;
+}
+.crud-caixa--recuperacao > .crud-mensagem:empty { display: none; }
+
+.recuperacao-rodape {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    flex: none;
+    padding-top: 10px;
+    border-top: 1px solid var(--crud-borda);
+}
+.recuperacao-rodape .crud-mensagem { margin: 0; min-height: 0; flex: 1 1 100%; }
+.recuperacao-rodape .crud-mensagem:empty { display: none; }
+.recuperacao-painel select,
+.recuperacao-alunos__busca {
+    width: 100%;
+    min-width: 0;
+    padding: 8px;
+    border: 1px solid var(--crud-borda);
+    border-radius: 6px;
+    font: inherit;
+}
+.recuperacao-painel select:disabled,
+.recuperacao-alunos__busca:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.recuperacao-alunos { display: grid; gap: 6px; }
+.recuperacao-alunos__resumo { color: var(--crud-suave); }
+.recuperacao-alunos__lista {
+    display: grid;
+    gap: 4px;
+    max-height: var(--recuperacao-lista-altura);
+    overflow-y: auto;
+    border: 1px solid var(--crud-borda);
+    border-radius: 8px;
+    padding: 8px;
+}
+.recuperacao-aluno { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.recuperacao-aluno__nome { flex: 1; min-width: 0; }
+.recuperacao-aluno__turma { color: var(--crud-suave); white-space: nowrap; }
+
+/* Chave ON/OFF (regra do projeto): escopada à aba, sem mexer nos demais checkboxes do modal. */
+.recuperacao-painel input[type="checkbox"] {
+    appearance: none;
+    position: relative;
+    flex: none;
+    box-sizing: border-box;
+    width: 3rem;
+    height: 1.5rem;
+    margin: 0;
+    background: rgba(0, 0, 0, 0.06);
+    border: 1px solid #a0aec0;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.recuperacao-painel input[type="checkbox"]::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0.2rem;
+    width: 1.05rem;
+    height: 1.05rem;
+    background: var(--recuperacao-desligado);
+    border-radius: 50%;
+    transform: translateY(-50%);
+    transition: left 0.2s, background 0.2s;
+}
+.recuperacao-painel input[type="checkbox"]::after {
+    content: "OFF";
+    position: absolute;
+    top: 50%;
+    right: 0.4rem;
+    transform: translateY(-50%);
+    color: var(--crud-suave);
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1;
+}
+.recuperacao-painel input[type="checkbox"]:checked {
+    background: var(--recuperacao-ligado-fundo);
+    border-color: var(--recuperacao-ligado-borda);
+    box-shadow: 0 0 6px var(--recuperacao-ligado-fundo);
+}
+.recuperacao-painel input[type="checkbox"]:checked::before {
+    left: calc(100% - 1.25rem);
+    background: var(--recuperacao-ligado);
+}
+.recuperacao-painel input[type="checkbox"]:checked::after {
+    content: "ON";
+    right: auto;
+    left: 0.45rem;
+    color: #22543d;
+}
+.recuperacao-painel input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--crud-azul);
+    outline-offset: 2px;
+}
+.recuperacao-painel input[type="checkbox"]:disabled { cursor: not-allowed; opacity: 0.5; }
+
+.recuperacao-painel .crud-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+    .recuperacao-painel input[type="checkbox"],
+    .recuperacao-painel input[type="checkbox"]::before { transition: none; }
+}
+
+@media (max-width: 640px) {
+    .recuperacao-painel select,
+    .recuperacao-alunos__busca { font-size: 16px; padding: 10px; }
+}

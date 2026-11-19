@@ -1,0 +1,270 @@
+/* Visual futurista (cyberpunk) da página pública status.html (sem login).
+   Receita: rules-ai/prompts/VISUAL-FUTURISTA.md */
+:root {
+  --cor-fundo: #05030d;
+  --cor-cartao: rgba(20, 12, 44, 0.72);
+  --cor-texto: #e8e6ff;
+  --cor-texto-suave: #a7a2d6;
+  --cor-ciano: #00f0ff;
+  --cor-magenta: #ff2bd6;
+  --cor-violeta: #7a3cff;
+  --cor-verde-neon: #39ff9c;
+  --cor-apagado: #4a4570;
+  --cor-alerta: #ffd24a;
+  --brilho-ciano: 0 0 10px rgba(0, 240, 255, 0.55);
+  --brilho-magenta: 0 0 12px rgba(255, 43, 214, 0.55);
+  --fonte-titulo: "Orbitron", "Segoe UI", sans-serif;
+  --fonte-dados: "Share Tech Mono", "Consolas", monospace;
+  --largura-maxima: 1400px;
+  --raio: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body.status-pagina {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--cor-texto);
+  font-family: var(--fonte-dados);
+  background-color: var(--cor-fundo);
+  background-image:
+    radial-gradient(circle at 15% 10%, rgba(122, 60, 255, 0.35), transparent 45%),
+    radial-gradient(circle at 85% 90%, rgba(255, 43, 214, 0.25), transparent 45%);
+  background-attachment: fixed;
+  overflow-x: hidden;
+}
+
+body.status-pagina::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(0, 240, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.status-varredura {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  height: 3px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--cor-ciano), var(--cor-magenta), transparent);
+  box-shadow: var(--brilho-ciano);
+  animation: status-varrer 6s linear infinite;
+}
+
+@keyframes status-varrer {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100vh);
+  }
+}
+
+.status-topo,
+.status-principal {
+  position: relative;
+  z-index: 1;
+  max-width: var(--largura-maxima);
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.status-topo h1 {
+  margin: 0;
+  color: var(--cor-ciano);
+  font-family: var(--fonte-titulo);
+  font-size: 1.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: var(--brilho-ciano);
+}
+
+.status-geracao {
+  margin: 0.4rem 0 0;
+  color: var(--cor-texto-suave);
+}
+
+.status-cartao {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--cor-cartao);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--cor-violeta);
+  border-radius: var(--raio);
+  box-shadow: 0 0 18px rgba(122, 60, 255, 0.35);
+}
+
+.status-cartao h2 {
+  margin: 0 0 0.8rem;
+  color: var(--cor-magenta);
+  font-family: var(--fonte-titulo);
+  font-size: 1.05rem;
+  text-shadow: var(--brilho-magenta);
+}
+
+.status-filtros {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.8rem;
+}
+
+.status-filtros label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  color: var(--cor-texto-suave);
+}
+
+.status-filtros select,
+.status-filtros input {
+  padding: 0.5rem;
+  color: var(--cor-texto);
+  font-family: var(--fonte-dados);
+  background: rgba(5, 3, 13, 0.85);
+  border: 1px solid var(--cor-ciano);
+  border-radius: 6px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--cor-magenta);
+  outline-offset: 2px;
+}
+
+.status-cursos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.8rem;
+}
+
+.status-curso-item {
+  padding: 0.6rem;
+  border: 1px solid var(--cor-apagado);
+  border-radius: 8px;
+}
+
+.status-curso-item strong {
+  display: block;
+  color: var(--cor-ciano);
+  word-break: break-word;
+}
+
+.status-curso-item span {
+  color: var(--cor-texto-suave);
+  font-size: 0.85rem;
+}
+
+.status-curso-item progress {
+  width: 100%;
+  height: 14px;
+  margin-top: 0.4rem;
+  appearance: none;
+  border: 0;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.status-curso-item progress::-webkit-progress-bar {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+}
+
+.status-curso-item progress::-webkit-progress-value {
+  border-radius: 7px;
+  background: linear-gradient(90deg, var(--cor-violeta), var(--cor-ciano));
+  box-shadow: var(--brilho-ciano);
+}
+
+.status-curso-item progress::-moz-progress-bar {
+  border-radius: 7px;
+  background: linear-gradient(90deg, var(--cor-violeta), var(--cor-ciano));
+}
+
+.status-rolagem {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.status-tabela {
+  width: 100%;
+  min-width: 1600px;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.status-tabela th,
+.status-tabela td {
+  padding: 0.4rem 0.5rem;
+  text-align: center;
+  border-bottom: 1px solid rgba(122, 60, 255, 0.35);
+}
+
+.status-tabela th {
+  color: var(--cor-ciano);
+  font-family: var(--fonte-titulo);
+  font-size: 0.7rem;
+}
+
+.status-tabela .status-nome {
+  min-width: 220px;
+  text-align: left;
+}
+
+.status-curso-nome {
+  display: block;
+  color: var(--cor-texto-suave);
+  font-size: 0.75rem;
+}
+
+.peca-ok {
+  color: var(--cor-verde-neon);
+  text-shadow: 0 0 8px var(--cor-verde-neon);
+}
+
+.peca-falta,
+.peca-traco {
+  color: var(--cor-apagado);
+}
+
+.peca-aviso {
+  color: var(--cor-alerta);
+}
+
+.status-faltam {
+  color: var(--cor-magenta);
+  font-family: var(--fonte-titulo);
+}
+
+.status-faltam--completo {
+  color: var(--cor-verde-neon);
+}
+
+.status-erro {
+  color: var(--cor-alerta);
+}
+
+@media (max-width: 720px) {
+  .status-filtros,
+  .status-cursos {
+    grid-template-columns: 1fr;
+  }
+
+  .status-topo h1 {
+    font-size: 1.3rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-varredura {
+    display: none;
+    animation: none;
+  }
+}

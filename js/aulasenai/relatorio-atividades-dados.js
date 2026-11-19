@@ -1,0 +1,277 @@
+// Dados do relatorioAtividades.html: busca no Supabase as atividades da matéria, as turmas, os
+// alunos (banco + listas de presença em scripts/LISTAPRESENCA.js) e as tentativas de cada
+// aluno, e calcula o resumo por aluno (fez a atividade, status, tentativas e média).
+// Só o professor logado enxerga tudo (RLS). Depende de js/supabase.js (sbGet, sbH, SUPABASE).
+// Regra da média: soma das melhores notas das atividades LIBERADAS PARA A TURMA (ativo e turma
+// fora de atividade.bloqueio) dividida pelo total delas (atividade não entregue conta 0).
+// Nota mínima = 7.
+// Notas fixas por turma: assets/js/notas-fixas-turma.js (obterNotaFixaTurma).
+
+const ROTA_RESUMO_REL = '/rest/v1/rpc/resumo_tentativas_atividade';
+const NOTA_MINIMA_REL = 7;
+const NOTA_MAXIMA_REL = 10;
+const PERFIL_PROFESSOR_REL = 'PROFESSOR';
+const CONSULTA_ATIVIDADES_REL =
+    'select=id,descricao,pagina,ativo,bloqueio,aulas(numero,materia(id,descricao))&order=id';
+const CONSULTA_TURMAS_REL = 'select=codigo,nome,turno,unidade:unidade_id(nome),uc,favorito';
+const CONSULTA_ALUNOS_REL = 'select=id,nome,email,turma_codigo,numero_chamada,na_chamada,' +
+    'desistente';
+const STATUS_NOTA_FIXA_REL = 'fixa';
+
+/**
+ * Normaliza um texto para comparar nomes (sem acentos, minúsculo, espaços únicos).
+ * @param {string} texto - Texto original.
+ * @returns {string} Texto normalizado.
+ */
+function normalizarTextoRel(texto) {
+    return String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Compara dois nomes em ordem alfabética (português, sem diferenciar acento).
+ * @param {string} a - Primeiro nome.
+ * @param {string} b - Segundo nome.
+ * @returns {number} Resultado da comparação.
+ */
+function compararNomesRel(a, b) {
+    return String(a || '').localeCompare(String(b || ''), 'pt-BR', { sensitivity: 'base' });
+}
+
+/**
+ * Indica se o usuário logado é professor.
+ * @returns {Promise<{logado: boolean, ehProfessor: boolean}>} Situação do login.
+ */
+async function lerLoginRel() {
+    const cliente = obterClienteSupabase();
+    if (!cliente) return { logado: false, ehProfessor: false };
+
+    const { data } = await cliente.auth.getSession();
+    const usuario = data?.session?.user;
+    const ehProfessor = usuario?.app_metadata?.perfil === PERFIL_PROFESSOR_REL;
+    return { logado: Boolean(usuario), ehProfessor };
+}
+
+/**
+ * Agrupa as atividades cadastradas por matéria.
+ * @param {Object[]} atividades - Atividades com aulas(materia).
+ * @returns {{id: number, nome: string, atividades: Object[]}[]} Matérias em ordem alfabética.
+ */
+function agruparMateriasRel(atividades) {
+    const porMateria = new Map();
+    atividades.forEach((atividade) => {
+        const materia = atividade.aulas?.materia;
+        if (!materia) return;
+
+        const grupo = porMateria.get(materia.id) || { id: materia.id, nome: materia.descricao,
+            atividades: [] };
+        grupo.atividades.push(atividade);
+        porMateria.set(materia.id, grupo);
+    });
+    return [...porMateria.values()].sort((a, b) => compararNomesRel(a.nome, b.nome));
+}
+
+/**
+ * Lê as listas de presença do arquivo único scripts/LISTAPRESENCA.js (sem a lista de professores).
+ * @returns {{codigo: string, nome: string, turno: string, uc: string,
+ *     alunos: Object[]}[]} Turmas das listas (professor excluído).
+ */
+function lerListasPresencaRel() {
+    const listas = (window.LISTAS_PRESENCA || []).filter((lista) => lista.professores !== true);
+    return listas.flatMap((lista) => (lista.turmas || []).map((turma) => ({
+        codigo: String(turma.codigo), nome: turma.nome, turno: turma.turno || '',
+        uc: turma.uc || lista.uc || '',
+        alunos: (turma.alunos || []).filter((aluno) => aluno.perfil !== PERFIL_PROFESSOR_REL),
+    })));
+}
+
+/**
+ * Junta os alunos do banco e da lista de presença de uma turma (chave = e-mail).
+ * @param {Object[]} doBanco - Alunos da tabela aluno nesta turma.
+ * @param {Object[]} daLista - Alunos da lista de presença nesta turma.
+ * @returns {Object[]} Alunos em ordem alfabética.
+ */
+function mesclarAlunosRel(doBanco, daLista) {
+    const porEmail = new Map();
+    daLista.forEach((aluno) => porEmail.set(String(aluno.email).toLowerCase(), {
+        id: null, nome: aluno.nome, email: aluno.email, numero: aluno.numero,
+        foraChamada: aluno.naChamada === false, cadastrado: false,
+    }));
+    doBanco.forEach((aluno) => {
+        const chave = String(aluno.email).toLowerCase();
+        // Desistente (#342) sai do relatório, mesmo se estiver na lista de presença.
+        if (aluno.desistente) {
+            porEmail.delete(chave);
+            return;
+        }
+        const existente = porEmail.get(chave) || {};
+        porEmail.set(chave, { ...existente, id: aluno.id, nome: aluno.nome || existente.nome,
+            email: aluno.email, numero: aluno.numero_chamada ?? existente.numero,
+            foraChamada: aluno.na_chamada === false, cadastrado: true });
+    });
+    return [...porEmail.values()].sort((a, b) => compararNomesRel(a.nome, b.nome));
+}
+
+/**
+ * Monta as turmas da matéria, com os alunos do banco e das listas de presença.
+ * Se nenhuma turma tiver a UC da matéria, mostra todas (aviso na tela).
+ * @param {{nome: string}} materia - Matéria escolhida.
+ * @returns {Promise<{turmas: Object[], filtradaPorUc: boolean}>} Turmas e se filtrou pela UC.
+ */
+async function carregarTurmasRel(materia) {
+    const [turmasBanco, alunosBanco] = await Promise.all(
+        [sbGet('turma', CONSULTA_TURMAS_REL), sbGet('aluno', CONSULTA_ALUNOS_REL)]);
+    const listas = lerListasPresencaRel();
+    const codigos = new Set([...turmasBanco.map((t) => t.codigo), ...listas.map((t) => t.codigo)]);
+    const todas = [...codigos].map((codigo) => {
+        const banco = turmasBanco.find((turma) => turma.codigo === codigo) || {};
+        const lista = listas.find((turma) => turma.codigo === codigo) || {};
+        return {
+            codigo, nome: banco.nome || lista.nome || codigo, uc: banco.uc || lista.uc || '',
+            turno: banco.turno || lista.turno || '',
+            unidadeNome: banco.unidade?.nome || '',
+            favorita: Boolean(banco.favorito),
+            alunos: mesclarAlunosRel(
+                alunosBanco.filter((aluno) => aluno.turma_codigo === codigo), lista.alunos || []),
+        };
+    });
+    const daMateria = todas.filter((turma) =>
+        normalizarTextoRel(turma.uc) === normalizarTextoRel(materia.nome));
+    const filtradaPorUc = daMateria.length > 0;
+    const turmas = filtradaPorUc ? daMateria : todas;
+    return { turmas: turmas.sort((a, b) => compararNomesRel(a.nome, b.nome)), filtradaPorUc };
+}
+
+/**
+ * Busca as tentativas de todos os alunos em cada atividade (função só do professor).
+ * @param {Object[]} atividades - Atividades da matéria.
+ * @returns {Promise<Map<number, Object[]>>} Linhas do resumo por id de atividade.
+ */
+async function carregarResumosRel(atividades) {
+    const pares = await Promise.all(atividades.map(async (atividade) => {
+        const resposta = await fetch(SUPABASE.URL + ROTA_RESUMO_REL, {
+            method: 'POST', headers: await sbH(), cache: 'no-store',
+            body: JSON.stringify({ p_atividade: atividade.id }),
+        });
+        if (!resposta.ok) throw new Error('Resumo da atividade ' + atividade.id + ' indisponível');
+        return [atividade.id, await resposta.json()];
+    }));
+    return new Map(pares);
+}
+
+/**
+ * Resume um aluno em uma atividade (tentativas, status e melhor nota entregue).
+ * @param {Object[]} linhas - Linhas do resumo do aluno nesta atividade.
+ * @returns {{tentativas: number, status: string, melhorNota: number|null}} Resumo.
+ */
+function resumirAtividadeDoAluno(linhas) {
+    if (!linhas.length) return { tentativas: 0, status: '', melhorNota: null };
+
+    const ordenadas = [...linhas].sort((a, b) => a.tentativa - b.tentativa);
+    const notas = ordenadas.filter((linha) => linha.entregue_em)
+        .map((linha) => (linha.acertos / linha.total) * NOTA_MAXIMA_REL);
+    const ultima = ordenadas[ordenadas.length - 1];
+    return {
+        tentativas: ordenadas.length, status: ultima.entregue_em ? 'entregue' : 'andamento',
+        melhorNota: notas.length ? Math.max(...notas) : null,
+    };
+}
+
+/**
+ * Diz se a atividade está liberada para a turma: ativa e com a turma fora de
+ * atividade.bloqueio. Sem turma informada, olha só o campo ativo.
+ * @param {{ativo: boolean, bloqueio: string[]}} atividade - Atividade da matéria.
+ * @param {string} [turmaCodigo] - Código da turma.
+ * @returns {boolean} true se a atividade vale para a turma.
+ */
+function estaLiberadaParaTurmaRel(atividade, turmaCodigo) {
+    if (!atividade.ativo) return false;
+    if (!turmaCodigo) return true;
+    return !(atividade.bloqueio || []).includes(String(turmaCodigo));
+}
+
+/**
+ * Atividades liberadas para a turma, em ordem de aula (e de id).
+ * @param {Object[]} atividades - Atividades da matéria.
+ * @param {string} [turmaCodigo] - Código da turma (vazio = só o campo ativo).
+ * @returns {Object[]} Atividades liberadas e ordenadas.
+ */
+function filtrarLiberadasParaTurmaRel(atividades, turmaCodigo) {
+    return atividades.filter((atividade) => estaLiberadaParaTurmaRel(atividade, turmaCodigo))
+        .sort((a, b) => (a.aulas?.numero ?? 0) - (b.aulas?.numero ?? 0) || a.id - b.id);
+}
+
+/**
+ * Resume um aluno em uma atividade, aplicando a nota fixa da turma quando houver.
+ * @param {Object} aluno - Aluno (com id ou null se sem cadastro).
+ * @param {Object} atividade - Atividade da matéria.
+ * @param {{resumos: Map<number, Object[]>, turmaCodigo: string}} contexto - Resumos e turma.
+ * @returns {Object} Detalhe: atividade, tentativas, status e melhorNota.
+ */
+function detalharAtividadeRel(aluno, atividade, { resumos, turmaCodigo }) {
+    const linhas = aluno.id
+        ? (resumos.get(atividade.id) || []).filter((linha) => linha.aluno_id === aluno.id) : [];
+    const detalhe = { atividade, ...resumirAtividadeDoAluno(linhas) };
+    const notaFixa = obterNotaFixaTurma(atividade.pagina, turmaCodigo);
+    if (notaFixa === null) return detalhe;
+
+    return { ...detalhe, status: STATUS_NOTA_FIXA_REL, melhorNota: notaFixa };
+}
+
+/**
+ * Calcula o resumo geral de um aluno nas atividades da matéria liberadas para a turma dele.
+ * @param {Object} aluno - Aluno (com id ou null se sem cadastro).
+ * @param {Object[]} atividades - Atividades da matéria.
+ * @param {{resumos: Map<number, Object[]>, turmaCodigo: string}} contexto - Resumos e turma.
+ * @returns {Object} Resumo: detalhes, feitas, fez, status, tentativas, media e naoAtingiu.
+ */
+function calcularResumoAlunoRel(aluno, atividades, contexto) {
+    const ativas = filtrarLiberadasParaTurmaRel(atividades, contexto.turmaCodigo);
+    const detalhes = ativas.map((atividade) => detalharAtividadeRel(aluno, atividade, contexto));
+    const feitas = detalhes.filter((detalhe) =>
+        detalhe.tentativas > 0 || detalhe.status === STATUS_NOTA_FIXA_REL).length;
+    const somaNotas = detalhes.reduce((soma, detalhe) => soma + (detalhe.melhorNota || 0), 0);
+    const media = ativas.length ? somaNotas / ativas.length : 0;
+    return {
+        detalhes, feitas, total: ativas.length, fez: feitas > 0, media,
+        entregue: detalhes.some((detalhe) =>
+            detalhe.status === 'entregue' || detalhe.status === STATUS_NOTA_FIXA_REL),
+        andamento: detalhes.some((detalhe) => detalhe.status === 'andamento'),
+        tentativas: Math.max(0, ...detalhes.map((detalhe) => detalhe.tentativas)),
+        naoAtingiu: media < NOTA_MINIMA_REL,
+    };
+}
+
+/**
+ * Carrega, para a conferência do professor, as respostas de um aluno em cada atividade ativa da
+ * matéria (tentativa mais recente) junto do gabarito real (só professor lê).
+ * Com a turma informada, só entram as atividades liberadas para ela.
+ * @param {string} alunoId - Id do aluno (auth.users.id).
+ * @param {Object[]} atividades - Atividades da matéria.
+ * @param {string} [turmaCodigo] - Turma do aluno (vazio = só o campo ativo).
+ * @returns {Promise<{atividade: Object, tentativa: number, itens: {item: number, marcada: string,
+ *     certa: string}[]}[]>} Uma entrada por atividade em que o aluno respondeu algo.
+ */
+async function carregarRespostasAlunoRel(alunoId, atividades, turmaCodigo = '') {
+    const ativas = filtrarLiberadasParaTurmaRel(atividades, turmaCodigo);
+    const ids = ativas.map((atividade) => atividade.id).join(',');
+    if (!ids) return [];
+
+    const [respostas, gabarito] = await Promise.all([
+        sbGet('resposta_atividade', 'select=atividade_id,tentativa,item,letra&aluno_id=eq.' +
+            encodeURIComponent(alunoId) + '&atividade_id=in.(' + ids + ')&order=item&limit=5000'),
+        sbGet('gabarito', 'select=atividade_id,item,letra&atividade_id=in.(' + ids +
+            ')&order=item&limit=5000')]);
+    return ativas.map((atividade) => {
+        const doAluno = respostas.filter((linha) => linha.atividade_id === atividade.id);
+        if (!doAluno.length) return null;
+
+        const tentativa = Math.max(...doAluno.map((linha) => linha.tentativa));
+        const marcadas = new Map(doAluno.filter((linha) => linha.tentativa === tentativa)
+            .map((linha) => [Number(linha.item), linha.letra]));
+        const itens = gabarito.filter((linha) => linha.atividade_id === atividade.id)
+            .map((linha) => ({ item: Number(linha.item), certa: linha.letra,
+                marcada: marcadas.get(Number(linha.item)) || '' }));
+        return { atividade, tentativa, itens };
+    }).filter(Boolean);
+}

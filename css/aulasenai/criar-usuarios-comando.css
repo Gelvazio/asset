@@ -1,0 +1,248 @@
+/* Página guia scripts/criarUsuariosBancoDados.html (assets/js/criar-usuarios-comando.js). */
+:root {
+    --guia-azul: #004384;
+    --guia-fundo: #f4f6fb;
+    --guia-texto: #1a202c;
+    --guia-borda: #cbd5e0;
+    --guia-aviso: #fff7e6;
+    --guia-erro: #b42318;
+    --guia-ok: #1b7f3b;
+    --guia-codigo: #111827;
+    --guia-senha-fundo-ativo: #fff1d6;
+    --guia-senha-borda-ativa: #b7791f;
+    --guia-senha-largura: 112px;
+    --guia-senha-altura: 36px;
+    --guia-foco: #f6ad55;
+    --guia-logar-largura: 168px;
+    --guia-logar-desabilitado: #a0aec0;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: var(--guia-fundo);
+    color: var(--guia-texto);
+    font-family: 'Segoe UI', Arial, sans-serif;
+    padding: 20px;
+    line-height: 1.5;
+}
+.guia {
+    max-width: 900px;
+    margin: 0 auto;
+    display: grid;
+    gap: 16px;
+    /* temas.css define a cor do body (texto claro do tema escuro) depois desta folha: o conteúdo
+       dos cartões brancos precisa da cor própria da página. */
+    color: var(--guia-texto);
+}
+.guia-cabecalho {
+    background: var(--guia-azul);
+    color: #fff;
+    padding: 20px 24px;
+    border-radius: 10px;
+}
+.guia-cartao {
+    background: #fff;
+    border: 1px solid var(--guia-borda);
+    border-radius: 10px;
+    padding: 16px 20px;
+}
+.guia-cartao h2 { color: var(--guia-azul); font-size: 18px; margin-bottom: 8px; }
+.guia-aviso { background: var(--guia-aviso); border-color: #f0c36d; }
+.guia-erro { color: var(--guia-erro); font-weight: 600; }
+
+.guia-tabela { width: 100%; border-collapse: collapse; font-size: 14px; }
+.guia-tabela th, .guia-tabela td {
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--guia-borda);
+}
+
+.guia-opcoes { display: grid; gap: 8px; }
+.guia-opcoes label { display: flex; align-items: center; gap: 8px; }
+
+.guia-comando {
+    background: var(--guia-codigo);
+    color: #e5e7eb;
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: Consolas, monospace;
+    font-size: 13px;
+    margin: 8px 0;
+}
+.guia-botao {
+    background: var(--guia-azul);
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+.guia-mensagem { margin-left: 10px; color: var(--guia-ok); font-weight: 600; }
+
+.guia-abas { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0 0; }
+.guia-aba {
+    background: #fff;
+    color: var(--guia-azul);
+    border: 1px solid var(--guia-borda);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    padding: 10px 16px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+.guia-aba--ativa { background: var(--guia-azul); color: #fff; border-color: var(--guia-azul); }
+.guia-cartao[hidden] { display: none; }
+
+.guia-comando:empty { display: none; }
+
+.guia-cartao > .guia-botao { display: block; margin: 16px auto; }
+
+.guia-controles { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; margin: 8px 0; }
+.guia-filtro { font: inherit; padding: 4px 8px; border: 1px solid var(--guia-borda); border-radius: 6px; }
+.guia-situacao { font-weight: 600; }
+.guia-situacao--sim { color: var(--guia-ok); }
+.guia-situacao--nao { color: var(--guia-erro); }
+.guia-botao:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.guia-marcar {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    vertical-align: middle;
+    border: 2px solid var(--guia-azul);
+    border-radius: 5px;
+    background: #fff;
+    cursor: pointer;
+    display: inline-grid;
+    place-content: center;
+    transition: background 0.15s, box-shadow 0.15s;
+}
+.guia-marcar::after {
+    content: "";
+    width: 5px;
+    height: 10px;
+    border: solid #fff;
+    border-width: 0 2.5px 2.5px 0;
+    transform: rotate(45deg) scale(0);
+    transition: transform 0.15s;
+}
+.guia-marcar:checked { background: var(--guia-azul); }
+.guia-marcar:checked::after { transform: rotate(45deg) scale(1); }
+.guia-marcar:hover { box-shadow: 0 0 0 3px rgba(0, 67, 132, 0.2); }
+.guia-marcar:focus-visible { outline: 2px solid var(--guia-azul); outline-offset: 2px; }
+.guia-controles label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.guia-tabela tr:has(.guia-marcar:checked) { background: #e8f0fb; }
+
+.guia-interruptor {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    width: 44px;
+    height: 24px;
+    margin: 0;
+    border-radius: 12px;
+    background: var(--guia-borda);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.guia-interruptor::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s;
+}
+.guia-interruptor:checked { background: var(--guia-azul); }
+.guia-interruptor:checked::after { transform: translateX(20px); }
+.guia-interruptor:focus-visible { outline: 2px solid var(--guia-azul); outline-offset: 2px; }
+
+.guia-cartao[hidden], .guia-abas[hidden] { display: none; }
+a.guia-botao { display: inline-block; text-decoration: none; margin-top: 8px; }
+
+.guia-aba { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.guia-aba__uc { font-size: 11px; font-weight: 600; opacity: 0.8; }
+.guia-aba__turma { font-size: 15px; }
+.guia-aba__local { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.guia-abas { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.guia-aba { width: 100%; }
+@media (max-width: 480px) { .guia-abas { grid-template-columns: 1fr; } }
+
+/* Coluna "Aluno anotou?" (escolha Sim/Não ao lado do nome) */
+.guia-anotou { padding: 3px 6px; border: 1px solid #cbd5e0; border-radius: 4px; font-weight: 600; }
+.guia-anotou--sim { color: var(--guia-ok); }
+.guia-anotou--nao { color: var(--guia-erro); }
+
+/* Exportação em PDF (criar-usuarios-exportar-pdf.js): a folha só existe durante a impressão */
+.guia-exportacao { display: none; }
+.guia-exportacao__tabela { width: 100%; border-collapse: collapse; font-size: 12px; }
+.guia-exportacao__tabela th,
+.guia-exportacao__tabela td { border: 1px solid #999; padding: 4px 6px; text-align: left; }
+.guia-exportacao__tabela th { background: #e8eef7; }
+
+@media print {
+    body.guia-exportando > *:not(.guia-exportacao) { display: none; }
+    body.guia-exportando > .guia-exportacao { display: block; }
+    .guia-exportacao h1 { font-size: 18px; margin: 0 0 4px; }
+    .guia-exportacao__tabela tr { break-inside: avoid; }
+}
+
+/* Modo banco (criar-usuarios-banco.js): opções de gravação escondidas e senha em fonte fixa */
+.guia-opcoes[hidden] { display: none; }
+.guia-senha { font-family: Consolas, monospace; }
+
+/* Botão de olho por linha no modo banco (mostra/oculta só a senha daquela linha) */
+/* Coluna do botão: centralizada, com largura fixa para a tabela não "pular" ao trocar o texto */
+.guia-celula-botao-senha { text-align: center; white-space: nowrap; }
+.guia-botao-senha {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    min-width: var(--guia-senha-largura); min-height: var(--guia-senha-altura);
+    padding: 4px 12px; font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap;
+    color: var(--guia-azul); background: #fff; border: 1.5px solid var(--guia-azul);
+    border-radius: 18px; cursor: pointer;
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.guia-botao-senha:hover { background: var(--guia-azul); color: #fff; }
+.guia-botao-senha:active { box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25); }
+.guia-botao-senha:focus-visible { outline: 3px solid var(--guia-foco); outline-offset: 2px; }
+.guia-botao-copiar { margin-left: 6px; padding: 0 6px; font-size: 14px; line-height: 1.4;
+  cursor: pointer; background: transparent; border: 1px solid #c9d3e3; border-radius: 6px; }
+.guia-botao-copiar:hover { background: #e8eef7; }
+.guia-botao-senha[aria-pressed="true"] {
+    background: var(--guia-senha-fundo-ativo); color: var(--guia-senha-borda-ativa);
+    border-color: var(--guia-senha-borda-ativa);
+}
+.guia-botao-senha[aria-pressed="true"]:hover {
+    background: var(--guia-senha-borda-ativa); color: #fff;
+}
+
+/* Botão "Logar Como Usuario" (criar-usuarios-logar-como.js): troca de sessão, azul cheio */
+.guia-celula-logar-como { text-align: center; white-space: nowrap; }
+.guia-botao-logar-como {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: var(--guia-logar-largura); min-height: var(--guia-senha-altura);
+    padding: 4px 12px; font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap;
+    color: #fff; background: var(--guia-azul); border: 1.5px solid var(--guia-azul);
+    border-radius: 18px; cursor: pointer;
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.guia-botao-logar-como:hover { background: #fff; color: var(--guia-azul); }
+.guia-botao-logar-como:active { box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25); }
+.guia-botao-logar-como:focus-visible { outline: 3px solid var(--guia-foco); outline-offset: 2px; }
+.guia-botao-logar-como:disabled {
+    background: #fff; color: var(--guia-logar-desabilitado);
+    border-color: var(--guia-logar-desabilitado); cursor: not-allowed; box-shadow: none;
+}

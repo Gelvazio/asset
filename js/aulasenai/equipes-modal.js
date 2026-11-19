@@ -1,0 +1,944 @@
+// Modal "👥 Equipes" das páginas de atividades (aberto pelo menu: assets/js/menu-acao-equipes.js).
+// Professor: escolhe a turma e faz o CRUD das equipes da matéria (equipe) e dos integrantes
+// (equipe_membro: aluno, papel, tarefas, líder e vice-líder; líder/vice em equipes-lideranca.js). Aluno: vê só a própria equipe.
+// Tudo no banco (sem localStorage). Avisos e confirmações pelo popup (assets/js/popup.js).
+// Depende de: assets/js/equipes-repositorio.js (repositório injetado) e assets/js/popup.js.
+
+const TITULO_MODAL_EQUIPES = '👥 Equipes';
+const CODIGO_DUPLICADO_EQUIPES = '23505';
+const CODIGO_CHAVE_ESTRANGEIRA_EQUIPES = '23503';
+const MSG_SEM_LOGIN_EQUIPES = 'Entre no sistema para ver as equipes.';
+const MSG_SEM_MATERIA_EQUIPES = 'Não foi possível identificar a matéria desta pasta ' +
+  '(nenhuma atividade dela está cadastrada no banco).';
+const MSG_ESCOLHA_MATERIA_EQUIPES = 'Selecione a matéria para ver e montar as equipes.';
+const MSG_SEM_TURMA_EQUIPES = 'Nenhuma turma vinculada a você. Peça o vínculo ao administrador.';
+const MSG_SEM_TURMA_MATERIA_EQUIPES = 'Nenhuma turma vinculada a esta matéria para você.';
+const MSG_ALUNO_SEM_EQUIPE_EQUIPES = 'Este aluno não está em nenhuma equipe desta matéria.';
+const TEXTO_TODOS_ALUNOS_EQUIPES = 'Todos os alunos';
+const MSG_ESCOLHA_TURMA_EQUIPES = 'Selecione a turma para ver e montar as equipes.';
+const MSG_SEM_EQUIPE_ALUNO = 'Você ainda não está em nenhuma equipe desta matéria.';
+const MSG_SEM_TURMA_GRAVAR_EQUIPES = 'Esta matéria não tem turma vinculada para você. ' +
+  'Peça ao administrador para vincular uma turma à matéria antes de criar equipes.';
+const MSG_DUPLICADO_EQUIPES = 'Já existe: o nome da equipe se repete ou o aluno já está em ' +
+  'outra equipe desta turma e matéria.';
+const MSG_ERRO_EQUIPES = 'Não foi possível concluir: ';
+const MSG_NOME_OBRIGATORIO = 'Informe o nome da equipe.';
+const MSG_MEMBRO_OBRIGATORIO = 'Escolha a equipe e o aluno.';
+const SUFIXO_DESISTENTE_EQUIPES = ' (desistente)';
+
+const estadoEquipes = {
+  repositorio: null, prefixoPasta: '', papeis: [], materia: null, usuario: null, cursos: [],
+  turmaCodigo: '', alunos: [], desistentes: [], equipes: [], membros: [], ehLider: false,
+  materias: [], alunoId: '', permissoes: { cadastrar: false, editar: false },
+  editandoEquipeId: null, editandoMembroId: null, atividades: [], ligacoes: [],
+  atividadesMinhaEquipe: [],
+};
+let elementosEquipes = null;
+
+/**
+ * Cria um elemento HTML com classe e texto.
+ * @param {string} tag - Nome da tag.
+ * @param {string} [classe] - Classe CSS.
+ * @param {string} [texto] - Texto do elemento.
+ * @returns {HTMLElement} Elemento criado.
+ */
+function criarElementoEquipes(tag, classe, texto) {
+  const elemento = document.createElement(tag);
+  if (classe) elemento.className = classe;
+  if (texto !== undefined) elemento.textContent = texto;
+  return elemento;
+}
+
+/**
+ * Cria um botão com data-acao (os cliques são tratados por delegação).
+ * @param {{texto: string, acao: string, classe?: string, id?: number}} opcoes - Dados do botão.
+ * @returns {HTMLButtonElement} Botão criado.
+ */
+function criarBotaoEquipes(opcoes) {
+  const classe = 'equipes-btn ' + (opcoes.classe || '');
+  const botao = criarElementoEquipes('button', classe, opcoes.texto);
+  botao.type = 'button';
+  botao.dataset.acao = opcoes.acao;
+  if (opcoes.id !== undefined) botao.dataset.id = String(opcoes.id);
+  return botao;
+}
+
+/**
+ * Cria um campo de formulário com rótulo.
+ * @param {string} rotulo - Texto do rótulo.
+ * @param {HTMLElement} controle - Input, select ou textarea.
+ * @returns {HTMLLabelElement} Campo.
+ */
+function criarCampoEquipes(rotulo, controle) {
+  const campo = criarElementoEquipes('label', 'equipes-campo');
+  campo.append(criarElementoEquipes('span', 'equipes-campo__rotulo', rotulo), controle);
+  return campo;
+}
+
+/**
+ * Cria um controle de formulário com nome.
+ * @param {string} tag - input, select ou textarea.
+ * @param {string} nome - Nome do campo.
+ * @param {string} [tipo] - Tipo do input.
+ * @returns {HTMLElement} Controle criado.
+ */
+function criarControleEquipes(tag, nome, tipo) {
+  const controle = criarElementoEquipes(tag, 'equipes-controle');
+  controle.name = nome;
+  if (tipo) controle.type = tipo;
+  return controle;
+}
+
+/**
+ * Preenche um select com opções, mantendo um valor se ainda existir.
+ * @param {HTMLSelectElement} select - Lista a preencher.
+ * @param {{valor: string, texto: string}[]} opcoes - Opções (a primeira pode ser vazia).
+ * @param {string} [valorAtual] - Valor a manter selecionado.
+ * @returns {void}
+ */
+function preencherSelectEquipes(select, opcoes, valorAtual) {
+  select.replaceChildren(...opcoes.map((opcao) => new Option(opcao.texto, opcao.valor)));
+  const temValor = opcoes.some((opcao) => opcao.valor === valorAtual);
+  select.value = temValor ? valorAtual : (opcoes[0]?.valor ?? '');
+}
+
+/**
+ * Monta o formulário da equipe (nome e descrição).
+ * @returns {HTMLFormElement} Formulário.
+ */
+function montarFormularioEquipe() {
+  const formulario = criarElementoEquipes('form', 'equipes-form');
+  formulario.dataset.formulario = 'equipe';
+  const nome = criarControleEquipes('input', 'nome', 'text');
+  nome.maxLength = 80;
+  const descricao = criarControleEquipes('textarea', 'descricao');
+  descricao.maxLength = 500;
+  descricao.rows = 2;
+  const salvar = criarBotaoEquipes({ texto: '💾 Salvar equipe', acao: 'salvar-equipe',
+    classe: 'equipes-btn--principal' });
+  salvar.type = 'submit';
+  const acoes = criarElementoEquipes('div', 'equipes-form__acoes');
+  acoes.append(salvar, criarBotaoEquipes({ texto: 'Cancelar', acao: 'fechar-janela' }));
+  formulario.append(criarElementoEquipes('h3', '', 'Equipe — cadastrar / editar'),
+    criarCampoEquipes('Nome da equipe', nome),
+    criarCampoEquipes('Descrição (tema, o que a equipe vai fazer)', descricao), acoes);
+  return formulario;
+}
+
+/**
+ * Cria a lista de sugestões de papéis (datalist) vinda do MENU-ATIVIDADES.js.
+ * @param {string[]} papeis - Papéis sugeridos.
+ * @returns {HTMLDataListElement} Datalist.
+ */
+function criarSugestoesPapeis(papeis) {
+  const lista = criarElementoEquipes('datalist');
+  lista.id = 'equipes-papeis-sugeridos';
+  papeis.forEach((papel) => lista.appendChild(new Option(papel)));
+  return lista;
+}
+
+/**
+ * Monta o formulário do integrante (equipe, aluno, papel, tarefas, líder, vice e permissões).
+ * @param {string[]} papeis - Papéis sugeridos.
+ * @returns {HTMLFormElement} Formulário.
+ */
+function montarFormularioMembro(papeis) {
+  const formulario = criarElementoEquipes('form', 'equipes-form');
+  formulario.dataset.formulario = 'membro';
+  const papel = criarControleEquipes('input', 'papel', 'text');
+  papel.maxLength = 60;
+  papel.setAttribute('list', 'equipes-papeis-sugeridos');
+  const tarefas = criarControleEquipes('textarea', 'tarefas');
+  tarefas.maxLength = 500;
+  tarefas.rows = 2;
+  const salvar = criarBotaoEquipes({ texto: '💾 Salvar integrante', acao: 'salvar-membro',
+    classe: 'equipes-btn--principal' });
+  salvar.type = 'submit';
+  const acoes = criarElementoEquipes('div', 'equipes-form__acoes');
+  acoes.append(salvar, criarBotaoEquipes({ texto: 'Cancelar', acao: 'fechar-janela' }));
+  formulario.append(criarElementoEquipes('h3', '', 'Integrante — adicionar / editar'),
+    criarCampoEquipes('Equipe', criarControleEquipes('select', 'equipe_id')),
+    criarCampoEquipes('Aluno', criarControleEquipes('select', 'aluno_id')),
+    criarCampoEquipes('Papel', papel), criarSugestoesPapeis(papeis),
+    criarCampoEquipes('Tarefas combinadas', tarefas),
+    ...criarCamposLiderancaEquipes(), acoes);
+  return formulario;
+}
+
+/**
+ * Cria uma janela (modal sobre o modal de equipes) com o formulário dentro; começa fechada.
+ * @param {HTMLFormElement} formulario - Formulário da equipe ou do integrante.
+ * @returns {HTMLDivElement} Janela.
+ */
+function criarJanelaEquipes(formulario) {
+  const janela = criarElementoEquipes('div', 'equipes-janela');
+  janela.hidden = true;
+  const caixa = criarElementoEquipes('div', 'equipes-janela__caixa');
+  caixa.setAttribute('role', 'dialog');
+  caixa.setAttribute('aria-modal', 'true');
+  caixa.appendChild(formulario);
+  janela.appendChild(caixa);
+  return janela;
+}
+
+/**
+ * Abre a janela do formulário e põe o cursor no primeiro campo editável.
+ * @param {HTMLDivElement} janela - Janela da equipe ou do integrante.
+ * @param {HTMLElement} [campo] - Campo que recebe o foco.
+ * @returns {void}
+ */
+function abrirJanelaEquipes(janela, campo) {
+  janela.hidden = false;
+  campo?.focus();
+}
+
+/**
+ * Fecha as janelas dos formulários.
+ * @returns {boolean} true se alguma janela estava aberta.
+ */
+function fecharJanelasEquipes() {
+  const janelas = [elementosEquipes.janelaEquipe, elementosEquipes.janelaMembro];
+  const haviaAberta = janelas.some((janela) => !janela.hidden);
+  janelas.forEach((janela) => { janela.hidden = true; });
+  return haviaAberta;
+}
+
+/**
+ * Abre a janela de nova equipe (formulário limpo).
+ * @returns {void}
+ */
+function abrirNovaEquipe() {
+  limparFormularioEquipe();
+  abrirJanelaEquipes(elementosEquipes.janelaEquipe, elementosEquipes.formularioEquipe.nome);
+}
+
+/**
+ * Abre a janela de novo integrante (formulário limpo).
+ * @returns {void}
+ */
+function abrirNovoIntegrante() {
+  limparFormularioMembro();
+  abrirJanelaEquipes(elementosEquipes.janelaMembro, elementosEquipes.formularioMembro.equipe_id);
+}
+
+/**
+ * Monta o modal e o anexa à página.
+ * @param {string[]} papeis - Papéis sugeridos.
+ * @returns {Object} Referências dos elementos do modal.
+ */
+function montarModalEquipes(papeis) {
+  const fundo = criarElementoEquipes('div', 'equipes-fundo');
+  const caixa = criarElementoEquipes('div', 'equipes-caixa');
+  caixa.setAttribute('role', 'dialog');
+  caixa.setAttribute('aria-modal', 'true');
+  const titulo = criarElementoEquipes('h2', '', TITULO_MODAL_EQUIPES);
+  const cabecalho = criarElementoEquipes('div', 'equipes-cabecalho');
+  cabecalho.append(titulo, criarBotaoEquipes({ texto: '✕ Fechar', acao: 'fechar' }));
+  const turma = criarControleEquipes('select', 'turma');
+  const materia = criarControleEquipes('select', 'materia');
+  const curso = criarControleEquipes('select', 'curso');
+  const campoCurso = criarCampoEquipes('Curso', curso);
+  const campoMateria = criarCampoEquipes('Matéria', materia);
+  const filtros = criarFiltrosCursoEquipes(() => {
+    aplicarFiltrosCursoEquipes().catch((erro) => mostrarMensagemEquipes(traduzirErroEquipes(erro)));
+  });
+  filtros.bloco.hidden = true;
+  campoCurso.hidden = true;
+  campoMateria.hidden = true;
+  const barra = criarElementoEquipes('div', 'equipes-barra');
+  const aluno = criarControleEquipes('select', 'aluno');
+  aluno.disabled = true;
+  aluno.append(new Option(TEXTO_TODOS_ALUNOS_EQUIPES, ''));
+  barra.append(filtros.bloco, campoCurso, campoMateria, criarCampoEquipes('Turma', turma),
+    criarCampoEquipes('Aluno', aluno),
+    criarBotaoEquipes({ texto: '📄 Exportar Equipes', acao: 'exportar-equipes' }));
+  const elementos = {
+    fundo, titulo, turma, aluno, barra, materia, campoMateria, curso, campoCurso,
+    filtrosCurso: filtros.bloco, filtroAnos: filtros.anos,
+    mensagem: criarElementoEquipes('p', 'equipes-mensagem'),
+    resumo: criarElementoEquipes('p', 'equipes-resumo'),
+    lista: criarElementoEquipes('div', 'equipes-lista'),
+    semEquipe: criarElementoEquipes('div', 'equipes-sem-equipe'),
+    formularioEquipe: montarFormularioEquipe(),
+    formularioMembro: montarFormularioMembro(papeis),
+  };
+  // Os formulários abrem em janelas próprias (sobre o modal); no modal ficam só os botões.
+  elementos.janelaEquipe = criarJanelaEquipes(elementos.formularioEquipe);
+  elementos.janelaMembro = criarJanelaEquipes(elementos.formularioMembro);
+  elementos.formularios = criarElementoEquipes('div', 'equipes-cadastro');
+  elementos.botaoNovaEquipe = criarBotaoEquipes({ texto: '+ Nova equipe', acao: 'nova-equipe',
+    classe: 'equipes-btn--principal' });
+  elementos.botaoNovoIntegrante = criarBotaoEquipes({ texto: '+ Novo integrante',
+    acao: 'novo-integrante' });
+  elementos.formularios.append(elementos.botaoNovaEquipe, elementos.botaoNovoIntegrante);
+  caixa.append(cabecalho, barra, elementos.mensagem, elementos.resumo, elementos.semEquipe,
+    elementos.formularios, elementos.lista);
+  fundo.append(caixa, elementos.janelaEquipe, elementos.janelaMembro);
+  document.body.appendChild(fundo);
+  return elementos;
+}
+
+/**
+ * Mostra uma mensagem no modal (vazio esconde).
+ * @param {string} texto - Mensagem.
+ * @returns {void}
+ */
+function mostrarMensagemEquipes(texto) {
+  elementosEquipes.mensagem.textContent = texto;
+  elementosEquipes.mensagem.hidden = !texto;
+}
+
+/**
+ * Mostra ou esconde as partes exclusivas do professor.
+ * @param {boolean} ehProfessor - Se o usuário é professor.
+ * @returns {void}
+ */
+function alternarModoProfessor(ehProfessor) {
+  elementosEquipes.barra.hidden = !ehProfessor;
+  elementosEquipes.formularios.hidden = !ehProfessor;
+  elementosEquipes.semEquipe.hidden = !ehProfessor;
+  elementosEquipes.resumo.hidden = !ehProfessor;
+}
+
+/**
+ * Converte o erro do banco em texto para o professor.
+ * @param {Object} erro - Erro do supabase-js.
+ * @returns {string} Mensagem amigável.
+ */
+function traduzirErroEquipes(erro) {
+  if (erro?.code === CODIGO_DUPLICADO_EQUIPES) return MSG_DUPLICADO_EQUIPES;
+  if (erro?.code === CODIGO_CHAVE_ESTRANGEIRA_EQUIPES) return MSG_SEM_TURMA_GRAVAR_EQUIPES;
+  return MSG_ERRO_EQUIPES + (erro?.message || String(erro));
+}
+
+/**
+ * Executa uma gravação, recarrega a turma e avisa erros pelo popup.
+ * @param {Function} gravacao - Função async que grava no banco.
+ * @returns {Promise<boolean>} true se gravou.
+ */
+async function executarGravacaoEquipes(gravacao) {
+  try {
+    await gravacao();
+    await carregarTurmaEquipes();
+    return true;
+  } catch (erro) {
+    await mostrarPopup(traduzirErroEquipes(erro), { tipo: 'erro' });
+    return false;
+  }
+}
+
+/**
+ * Nome do aluno pelo id (alunos da turma carregados).
+ * @param {string} alunoId - Id do aluno.
+ * @returns {string} Nome.
+ */
+function nomeDoAlunoEquipes(alunoId) {
+  const aluno = estadoEquipes.alunos.find((item) => item.id === alunoId);
+  if (aluno) return aluno.nome;
+
+  const desistente = estadoEquipes.desistentes.find((item) => item.id === alunoId);
+  return desistente ? desistente.nome + SUFIXO_DESISTENTE_EQUIPES : 'Aluno fora da turma';
+}
+
+/**
+ * Integrantes de uma equipe: líder, vice-líder e depois os demais, cada grupo pelo nome.
+ * @param {number} equipeId - Id da equipe.
+ * @returns {Object[]} Membros ordenados.
+ */
+function membrosDaEquipe(equipeId) {
+  // Desistente some da equipe na tela (NOTAS-SEM-DESISTENTES); o vínculo fica no banco.
+  const desistentes = new Set(estadoEquipes.desistentes.map((item) => item.id));
+  return estadoEquipes.membros
+    .filter((membro) => membro.equipe_id === equipeId && !desistentes.has(membro.aluno_id))
+    .sort((a, b) => pesoLiderancaEquipes(b) - pesoLiderancaEquipes(a) ||
+      nomeDoAlunoEquipes(a.aluno_id).localeCompare(nomeDoAlunoEquipes(b.aluno_id), 'pt-BR'));
+}
+
+/**
+ * Alunos da turma que ainda não estão em nenhuma equipe da matéria.
+ * @returns {{id: string, nome: string}[]} Alunos sem equipe.
+ */
+function alunosSemEquipe() {
+  const comEquipe = new Set(estadoEquipes.membros.map((membro) => membro.aluno_id));
+  return estadoEquipes.alunos.filter((aluno) => !comEquipe.has(aluno.id));
+}
+
+/**
+ * Mostra, no início do modal, os alunos sem equipe (refeito a cada gravação).
+ * @returns {void}
+ */
+function renderizarSemEquipe() {
+  const semEquipe = alunosSemEquipe();
+  const titulo = criarElementoEquipes('h3', '', 'Alunos sem equipe (' + semEquipe.length + ')');
+  if (!semEquipe.length) {
+    elementosEquipes.semEquipe.replaceChildren(titulo, criarElementoEquipes('p',
+      'equipes-sem-equipe__nomes', 'Todos os alunos têm equipe.'));
+    return;
+  }
+  const lista = criarElementoEquipes('ul', 'equipes-sem-equipe__lista');
+  semEquipe.forEach((aluno) => lista.append(criarElementoEquipes('li', 'equipes-sem-equipe__aluno',
+    aluno.nome)));
+  elementosEquipes.semEquipe.replaceChildren(titulo, lista);
+}
+
+/**
+ * Atualiza os selects do formulário de integrante.
+ * @returns {void}
+ */
+function atualizarSelectsMembro() {
+  const formulario = elementosEquipes.formularioMembro;
+  const opcoesEquipe = [{ valor: '', texto: 'Selecione a equipe…' }].concat(
+    estadoEquipes.equipes.map((equipe) => ({ valor: String(equipe.id), texto: equipe.nome })));
+  preencherSelectEquipes(formulario.equipe_id, opcoesEquipe, formulario.equipe_id.value);
+
+  const membroEditado = estadoEquipes.membros.find((m) => m.id === estadoEquipes.editandoMembroId);
+  const alunos = alunosSemEquipe();
+  if (membroEditado) alunos.unshift({ id: membroEditado.aluno_id,
+    nome: nomeDoAlunoEquipes(membroEditado.aluno_id) });
+  const opcoesAluno = [{ valor: '', texto: 'Selecione o aluno…' }].concat(
+    alunos.map((aluno) => ({ valor: aluno.id, texto: aluno.nome })));
+  preencherSelectEquipes(formulario.aluno_id, opcoesAluno, formulario.aluno_id.value);
+}
+
+/**
+ * Equipes que o filtro do combo Aluno deixa visíveis (todas se nenhum aluno escolhido).
+ * @returns {Object[]} Equipes visíveis.
+ */
+function equipesVisiveisEquipes() {
+  const alunoId = estadoEquipes.alunoId;
+  if (!alunoId) return estadoEquipes.equipes;
+
+  const idsEquipes = new Set(estadoEquipes.membros
+    .filter((membro) => membro.aluno_id === alunoId).map((membro) => membro.equipe_id));
+  return estadoEquipes.equipes.filter((equipe) => idsEquipes.has(equipe.id));
+}
+
+/**
+ * Cria a tabela de equipes só com as equipes dadas (a tabela lê estadoEquipes.equipes).
+ * @param {Object[]} equipes - Equipes a mostrar.
+ * @returns {HTMLElement} Tabela de equipes.
+ */
+function criarTabelaDasEquipes(equipes) {
+  const todas = estadoEquipes.equipes;
+  estadoEquipes.equipes = equipes;
+  try {
+    return criarTabelaEquipes();
+  } finally {
+    estadoEquipes.equipes = todas;
+  }
+}
+
+/**
+ * Redesenha a visão do professor (resumo, cards, sem equipe e selects).
+ * @returns {void}
+ */
+function renderizarTurmaEquipes() {
+  const totalSemEquipe = alunosSemEquipe().length;
+  const visiveis = equipesVisiveisEquipes();
+  elementosEquipes.resumo.textContent = visiveis.length + ' equipe(s) · ' +
+    estadoEquipes.alunos.length + ' aluno(s) na turma · ' + totalSemEquipe + ' sem equipe';
+  const barraAtividades = criarBarraAtividadesEquipes();
+  const conteudo = estadoEquipes.alunoId && !visiveis.length
+    ? criarElementoEquipes('p', 'equipes-mensagem', MSG_ALUNO_SEM_EQUIPE_EQUIPES)
+    : criarTabelaDasEquipes(visiveis);
+  elementosEquipes.lista.replaceChildren(...(barraAtividades ? [barraAtividades] : []), conteudo);
+  renderizarSemEquipe();
+  atualizarSelectsMembro();
+}
+
+/**
+ * Preenche o combo Aluno com todos os alunos da turma (ou só "Todos" sem turma).
+ * @returns {void}
+ */
+function preencherComboAlunoEquipes() {
+  const select = elementosEquipes.aluno;
+  const opcoes = [{ valor: '', texto: TEXTO_TODOS_ALUNOS_EQUIPES }].concat(
+    estadoEquipes.alunos.map((aluno) => ({ valor: aluno.id, texto: aluno.nome })));
+  const temTurma = Boolean(estadoEquipes.turmaCodigo);
+  preencherSelectEquipes(select, temTurma ? opcoes : opcoes.slice(0, 1), estadoEquipes.alunoId);
+  select.disabled = !temTurma;
+  estadoEquipes.alunoId = select.value;
+}
+
+/**
+ * Carrega alunos, equipes e integrantes da turma escolhida.
+ * @returns {Promise<void>}
+ */
+async function carregarTurmaEquipes() {
+  const repositorio = estadoEquipes.repositorio;
+  const turmaCodigo = estadoEquipes.turmaCodigo;
+  const temTurma = Boolean(turmaCodigo);
+  elementosEquipes.formularios.hidden = !temTurma;
+  if (!temTurma) {
+    preencherComboAlunoEquipes();
+    elementosEquipes.lista.replaceChildren();
+    elementosEquipes.semEquipe.replaceChildren();
+    elementosEquipes.resumo.textContent = '';
+    mostrarMensagemEquipes(MSG_ESCOLHA_TURMA_EQUIPES);
+    return;
+  }
+  mostrarMensagemEquipes('');
+  const filtro = { turmaCodigo, materiaId: estadoEquipes.materia.id };
+  estadoEquipes.alunos = estadoEquipes.ehLider
+    ? await repositorio.listarAlunosDaTurmaLider(turmaCodigo)
+    : await repositorio.listarAlunosDaTurma(turmaCodigo);
+  preencherComboAlunoEquipes();
+  estadoEquipes.desistentes = estadoEquipes.ehLider
+    ? [] : await repositorio.listarDesistentesDaTurma(turmaCodigo);
+  estadoEquipes.equipes = await repositorio.listarEquipes(filtro);
+  estadoEquipes.membros = await repositorio.listarMembros(estadoEquipes.equipes.map((e) => e.id));
+  await carregarAtividadesEquipes();
+  renderizarTurmaEquipes();
+}
+
+/**
+ * Texto da turma na lista: código — nome · UNIDADE (local + turno, assets/js/unidade.js).
+ * @param {{codigo: string, nome: string, turno: string, local: string}} turma - Turma.
+ * @returns {string} Rótulo.
+ */
+function rotuloTurmaEquipes(turma) {
+  return acrescentarUnidadeTurma(turma.codigo + ' — ' + (turma.nome || ''), turma);
+}
+
+/**
+ * Prepara a visão do professor: lista de turmas (1 turma = já selecionada).
+ * @returns {Promise<void>}
+ */
+async function iniciarModoProfessor() {
+  const { repositorio, usuario, ehLider, materia } = estadoEquipes;
+  const turmas = ehLider ? await repositorio.listarTurmasDoAluno(usuario.id)
+    : await repositorio.listarTurmasDaMateria(usuario.id, materia.id);
+  if (!turmas.length) {
+    estadoEquipes.turmaCodigo = '';
+    alternarModoProfessor(false);
+    mostrarMensagemEquipes(ehLider ? MSG_SEM_TURMA_EQUIPES : MSG_SEM_TURMA_MATERIA_EQUIPES);
+    return;
+  }
+  const opcoes = turmas.map((turma) => ({ valor: turma.codigo, texto: rotuloTurmaEquipes(turma) }));
+  if (turmas.length > 1) opcoes.unshift({ valor: '', texto: 'Selecione a turma…' });
+  preencherSelectEquipes(elementosEquipes.turma, opcoes, estadoEquipes.turmaCodigo);
+  estadoEquipes.turmaCodigo = elementosEquipes.turma.value;
+  await carregarTurmaEquipes();
+}
+
+/**
+ * Agrupa as linhas de minhas_equipes por equipe.
+ * @param {Object[]} linhas - Linhas equipe × membro.
+ * @returns {Map<number, Object[]>} Linhas por equipe.
+ */
+function agruparPorEquipe(linhas) {
+  const grupos = new Map();
+  linhas.forEach((linha) => {
+    const grupo = grupos.get(linha.equipe_id) || [];
+    grupo.push(linha);
+    grupos.set(linha.equipe_id, grupo);
+  });
+  return grupos;
+}
+
+/**
+ * Cria o card (só leitura) de uma equipe do aluno.
+ * @param {Object[]} linhas - Integrantes da equipe.
+ * @returns {HTMLElement} Card.
+ */
+function criarCardMinhaEquipe(linhas) {
+  const card = criarElementoEquipes('article', 'equipes-card');
+  card.append(criarElementoEquipes('h3', '', linhas[0].equipe_nome +
+    ' — turma ' + linhas[0].turma_codigo));
+  if (linhas[0].equipe_descricao) card.append(criarElementoEquipes('p',
+    'equipes-card__descricao', linhas[0].equipe_descricao));
+  const lista = criarElementoEquipes('ul', 'equipes-membros');
+  linhas.forEach((linha) => {
+    const item = criarElementoEquipes('li', 'equipes-membro');
+    if (linha.eu) item.classList.add('equipes-membro--eu');
+    const texto = criarElementoEquipes('div', 'equipes-membro__texto');
+    const coroa = iconeLiderancaEquipes(linha) + ' ';
+    texto.append(criarElementoEquipes('strong', '', coroa + linha.aluno_nome),
+      criarElementoEquipes('span', 'equipes-membro__papel', linha.papel || 'sem papel'));
+    if (linha.tarefas) texto.append(criarElementoEquipes('small', '', linha.tarefas));
+    item.append(texto);
+    lista.appendChild(item);
+  });
+  card.append(lista);
+  const secaoAtividades = criarSecaoAtividadesDoAluno(linhas[0].equipe_id);
+  if (secaoAtividades) card.append(secaoAtividades);
+  return card;
+}
+
+/**
+ * Prepara a visão do aluno: só a própria equipe, sem edição.
+ * @returns {Promise<void>}
+ */
+async function iniciarModoAluno() {
+  const linhas = await estadoEquipes.repositorio.listarMinhasEquipes(estadoEquipes.materia.id);
+  if (!linhas.length) {
+    mostrarMensagemEquipes(MSG_SEM_EQUIPE_ALUNO);
+    return;
+  }
+  estadoEquipes.atividadesMinhaEquipe = await carregarAtividadesDoAluno();
+  const grupos = [...agruparPorEquipe(linhas).values()];
+  elementosEquipes.lista.replaceChildren(...grupos.map(criarCardMinhaEquipe));
+}
+
+/**
+ * Lê usuário e matéria e decide a visão (professor ou aluno).
+ * @returns {Promise<void>}
+ */
+async function carregarInicialEquipes() {
+  const repositorio = estadoEquipes.repositorio;
+  alternarModoProfessor(false);
+  elementosEquipes.lista.replaceChildren();
+  estadoEquipes.usuario = await repositorio.usuarioLogado();
+  if (!estadoEquipes.usuario) return mostrarMensagemEquipes(MSG_SEM_LOGIN_EQUIPES);
+
+  const ehProfessor = repositorio.ehProfessor(estadoEquipes.usuario);
+  // Aluno líder/vice com permissão (usuario.pode_*_equipes) gere as equipes da própria turma.
+  await carregarPermissoesUsuarioEquipes(ehProfessor);
+  const podeGerir = ehProfessor || estadoEquipes.ehLider;
+  estadoEquipes.materia = await resolverMateriaEquipes(ehProfessor);
+  const escolheMateria = !elementosEquipes.campoMateria.hidden;
+  if (!estadoEquipes.materia && !escolheMateria) {
+    return mostrarMensagemEquipes(MSG_SEM_MATERIA_EQUIPES);
+  }
+  alternarModoProfessor(podeGerir);
+  if (podeGerir) aplicarPermissoesEquipes();
+  if (!estadoEquipes.materia) return mostrarSemMateriaEquipes();
+
+  atualizarTituloEquipes();
+  mostrarMensagemEquipes('');
+  if (podeGerir) return iniciarModoProfessor();
+  return iniciarModoAluno();
+}
+
+/**
+ * Matéria das equipes: a da página (atividade.pagina); para o professor, se a página não define
+ * a matéria (fora de uma matéria ou matéria sem atividade no banco), mostra a lista "Matéria".
+ * @param {boolean} ehProfessor - Se o usuário é professor.
+ * @returns {Promise<Object|null>} Matéria escolhida ou null.
+ */
+async function resolverMateriaEquipes(ehProfessor) {
+  const repositorio = estadoEquipes.repositorio;
+  definirListasMateriaVisiveisEquipes(false);
+  const prefixo = estadoEquipes.prefixoPasta;
+  const daPasta = prefixo ? await repositorio.buscarMateriaDaPasta(prefixo) : null;
+  if (daPasta || !ehProfessor) return daPasta;
+
+  const [materias, cursos] = await Promise.all([
+    repositorio.listarMaterias(), repositorio.listarCursos()]);
+  estadoEquipes.materias = materias;
+  const atual = estadoEquipes.materia
+    ? materias.find((materia) => materia.id === estadoEquipes.materia.id) : null;
+  const cursoAtual = atual ? String(atual.curso_id) : '';
+  estadoEquipes.cursos = cursos;
+  desenharFiltrosAnoEquipes(elementosEquipes.filtroAnos, cursos, () => {
+    aplicarFiltrosCursoEquipes().catch((erro) => mostrarMensagemEquipes(traduzirErroEquipes(erro)));
+  });
+  preencherListaCursoEquipes(cursoAtual);
+  preencherMateriasDoCursoEquipes(elementosEquipes.curso.value, atual ? String(atual.id) : '');
+  definirListasMateriaVisiveisEquipes(true);
+  const escolhida = Number(elementosEquipes.materia.value);
+  return materias.find((materia) => materia.id === escolhida) || null;
+}
+
+/**
+ * Texto da opção do curso: nome e, quando houver, o período (ano/semestre).
+ * @param {{nome_completo: string, ano: ?number, semestre: ?number}} curso - Curso.
+ * @returns {string} Ex.: "Técnico em Informática para Internet — 2026/1".
+ */
+function textoCursoEquipes(curso) {
+  if (!curso.ano) return curso.nome_completo;
+  const periodo = curso.semestre ? curso.ano + '/' + curso.semestre : String(curso.ano);
+  return curso.nome_completo + ' — ' + periodo;
+}
+
+/**
+ * Preenche a lista "Curso" só com os cursos que passam nos filtros de nome, ano e semestre.
+ * @param {string} cursoAtual - Id do curso a manter selecionado (se ainda aparecer).
+ * @returns {void}
+ */
+function preencherListaCursoEquipes(cursoAtual) {
+  const opcoes = [{ valor: '', texto: 'Selecione o curso…' }].concat(
+    estadoEquipes.cursos.filter(cursoPassaNoFiltroEquipes).map((curso) => (
+      { valor: String(curso.id), texto: textoCursoEquipes(curso) })));
+  preencherSelectEquipes(elementosEquipes.curso, opcoes, cursoAtual);
+}
+
+/**
+ * Um filtro mudou: refaz a lista "Curso"; se o curso escolhido saiu da lista, volta a
+ * "sem matéria".
+ * @returns {Promise<void>}
+ */
+async function aplicarFiltrosCursoEquipes() {
+  const anterior = elementosEquipes.curso.value;
+  preencherListaCursoEquipes(anterior);
+  if (elementosEquipes.curso.value !== anterior) await aoMudarCursoEquipes();
+}
+
+/**
+ * Mostra ou esconde os filtros e as listas "Curso" e "Matéria" juntos.
+ * @param {boolean} visiveis - true para mostrar.
+ * @returns {void}
+ */
+function definirListasMateriaVisiveisEquipes(visiveis) {
+  elementosEquipes.filtrosCurso.hidden = !visiveis;
+  elementosEquipes.campoCurso.hidden = !visiveis;
+  elementosEquipes.campoMateria.hidden = !visiveis;
+}
+
+/**
+ * Preenche a lista "Matéria" só com as matérias do curso escolhido (sem curso, fica travada).
+ * @param {string} cursoId - Id do curso escolhido ('' = nenhum).
+ * @param {string} materiaAtual - Id da matéria a manter selecionada.
+ * @returns {void}
+ */
+function preencherMateriasDoCursoEquipes(cursoId, materiaAtual) {
+  const select = elementosEquipes.materia;
+  select.disabled = !cursoId;
+  const textoVazio = cursoId ? 'Selecione a matéria…' : 'Selecione o curso primeiro…';
+  const doCurso = estadoEquipes.materias.filter((materia) => String(materia.curso_id) === cursoId);
+  const opcoes = [{ valor: '', texto: textoVazio }].concat(
+    doCurso.map((materia) => (
+      { valor: String(materia.id), texto: materia.id + ' — ' + materia.descricao })));
+  preencherSelectEquipes(select, opcoes, materiaAtual);
+}
+
+/**
+ * Professor trocou o curso: lista só as matérias dele e volta ao estado "sem matéria".
+ * @returns {Promise<void>}
+ */
+async function aoMudarCursoEquipes() {
+  preencherMateriasDoCursoEquipes(elementosEquipes.curso.value, '');
+  await aoMudarMateriaEquipes();
+}
+
+/**
+ * Título do modal com a matéria atual.
+ * @returns {void}
+ */
+function atualizarTituloEquipes() {
+  const materia = estadoEquipes.materia;
+  elementosEquipes.titulo.textContent = materia
+    ? TITULO_MODAL_EQUIPES + ' — ' + materia.descricao : TITULO_MODAL_EQUIPES;
+}
+
+/**
+ * Estado "sem matéria escolhida": limpa a tela e pede a matéria.
+ * @returns {void}
+ */
+function mostrarSemMateriaEquipes() {
+  atualizarTituloEquipes();
+  elementosEquipes.formularios.hidden = true;
+  elementosEquipes.lista.replaceChildren();
+  elementosEquipes.semEquipe.replaceChildren();
+  elementosEquipes.resumo.textContent = '';
+  mostrarMensagemEquipes(MSG_ESCOLHA_MATERIA_EQUIPES);
+}
+
+/**
+ * Professor trocou a matéria na lista: recarrega turmas e equipes da matéria escolhida.
+ * @returns {Promise<void>}
+ */
+async function aoMudarMateriaEquipes() {
+  const escolhida = Number(elementosEquipes.materia.value);
+  estadoEquipes.materia = estadoEquipes.materias.find((materia) => materia.id === escolhida) || null;
+  limparFormularioEquipe();
+  limparFormularioMembro();
+  if (!estadoEquipes.materia) return mostrarSemMateriaEquipes();
+
+  atualizarTituloEquipes();
+  mostrarMensagemEquipes('');
+  await iniciarModoProfessor();
+}
+
+/**
+ * Limpa o formulário da equipe (volta a "cadastrar").
+ * @returns {void}
+ */
+function limparFormularioEquipe() {
+  estadoEquipes.editandoEquipeId = null;
+  elementosEquipes.formularioEquipe.reset();
+}
+
+/**
+ * Limpa o formulário do integrante (volta a "adicionar").
+ * @returns {void}
+ */
+function limparFormularioMembro() {
+  estadoEquipes.editandoMembroId = null;
+  elementosEquipes.formularioMembro.reset();
+  atualizarSelectsMembro();
+  atualizarCamposLideranca();
+}
+
+/**
+ * Grava a equipe do formulário (cria ou altera).
+ * @returns {Promise<void>}
+ */
+async function salvarEquipe() {
+  const formulario = elementosEquipes.formularioEquipe;
+  const nome = formulario.nome.value.trim();
+  if (!nome) return void await mostrarPopup(MSG_NOME_OBRIGATORIO, { tipo: 'aviso' });
+  if (!estadoEquipes.turmaCodigo) {
+    return void await mostrarPopup(MSG_SEM_TURMA_GRAVAR_EQUIPES, { tipo: 'aviso' });
+  }
+
+  const campos = { nome, descricao: formulario.descricao.value.trim() || null };
+  const id = estadoEquipes.editandoEquipeId;
+  const gravou = await executarGravacaoEquipes(() => {
+    if (id) return estadoEquipes.repositorio.alterarEquipe(id, campos);
+    return estadoEquipes.repositorio.criarEquipe({ ...campos,
+      turma_codigo: estadoEquipes.turmaCodigo, materia_id: estadoEquipes.materia.id });
+  });
+  if (!gravou) return;
+  limparFormularioEquipe();
+  fecharJanelasEquipes();
+}
+
+/**
+ * Carrega uma equipe no formulário para edição.
+ * @param {number} id - Id da equipe.
+ * @returns {void}
+ */
+function editarEquipe(id) {
+  const equipe = estadoEquipes.equipes.find((item) => item.id === id);
+  if (!equipe) return;
+
+  const formulario = elementosEquipes.formularioEquipe;
+  estadoEquipes.editandoEquipeId = id;
+  formulario.nome.value = equipe.nome;
+  formulario.descricao.value = equipe.descricao || '';
+  abrirJanelaEquipes(elementosEquipes.janelaEquipe, formulario.nome);
+}
+
+/**
+ * Exclui uma equipe (com confirmação; os integrantes saem junto).
+ * @param {number} id - Id da equipe.
+ * @returns {Promise<void>}
+ */
+async function excluirEquipe(id) {
+  const equipe = estadoEquipes.equipes.find((item) => item.id === id);
+  const confirmou = await confirmarPopup('Excluir a equipe "' + (equipe?.nome || '') +
+    '"? Os integrantes ficam sem equipe.', { textoConfirmar: 'Excluir' });
+  if (!confirmou) return;
+
+  await executarGravacaoEquipes(() => estadoEquipes.repositorio.excluirEquipe(id));
+  if (estadoEquipes.editandoEquipeId === id) limparFormularioEquipe();
+}
+
+/**
+ * Retira um integrante da equipe (com confirmação).
+ * @param {number} id - Id do integrante.
+ * @returns {Promise<void>}
+ */
+async function excluirMembro(id) {
+  const membro = estadoEquipes.membros.find((item) => item.id === id);
+  const nome = membro ? nomeDoAlunoEquipes(membro.aluno_id) : '';
+  const confirmou = await confirmarPopup('Retirar ' + nome + ' da equipe?',
+    { textoConfirmar: 'Retirar' });
+  if (!confirmou) return;
+
+  await executarGravacaoEquipes(() => estadoEquipes.repositorio.excluirMembro(id));
+  if (estadoEquipes.editandoMembroId === id) limparFormularioMembro();
+}
+
+/**
+ * Fecha o modal.
+ * @returns {void}
+ */
+function fecharModalEquipes() {
+  fecharJanelasEquipes();
+  elementosEquipes.fundo.hidden = true;
+}
+
+const ACOES_CLIQUE_EQUIPES = {
+  'fechar': fecharModalEquipes,
+  'nova-equipe': abrirNovaEquipe,
+  'novo-integrante': abrirNovoIntegrante,
+  'fechar-janela': fecharJanelasEquipes,
+  'editar-equipe': editarEquipe,
+  'excluir-equipe': excluirEquipe,
+  'editar-membro': editarMembro,
+  'excluir-membro': excluirMembro,
+  'exportar-equipes': () => exportarEquipesPdf(),
+  'abrir-integrante': abrirSeletorIntegrante,
+  'cancelar-integrante': cancelarSeletorIntegrante,
+  'confirmar-integrante': confirmarIntegrante,
+  'abrir-atividades-equipe': abrirAtividadesEquipe,
+  'ligar-todas-atividade': ligarTodasEquipesAtividade,
+  'confirmar-respostas': confirmarRespostasDaEquipe,
+  'confirmar-respostas-todas': confirmarRespostasTodasEquipes,
+};
+
+/**
+ * Trata os cliques do modal por delegação (data-acao).
+ * @param {MouseEvent} evento - Clique.
+ * @returns {void}
+ */
+function tratarCliqueEquipes(evento) {
+  if (evento.target === elementosEquipes.fundo) return fecharModalEquipes();
+  if (evento.target.classList.contains('equipes-janela')) return void fecharJanelasEquipes();
+
+  const botao = evento.target.closest('button[data-acao]');
+  const acao = botao && ACOES_CLIQUE_EQUIPES[botao.dataset.acao];
+  if (!acao) return;
+
+  acao(Number(botao.dataset.id), botao);
+}
+
+/**
+ * Liga os eventos do modal (uma vez).
+ * @returns {void}
+ */
+function ligarEventosEquipes() {
+  elementosEquipes.fundo.addEventListener('click', tratarCliqueEquipes);
+  elementosEquipes.fundo.addEventListener('change', tratarMudancaAtividadesEquipes);
+  elementosEquipes.formularioEquipe.addEventListener('submit', (evento) => {
+    evento.preventDefault();
+    salvarEquipe();
+  });
+  ligarEventosLideranca(elementosEquipes.formularioMembro);
+  elementosEquipes.formularioMembro.addEventListener('submit', (evento) => {
+    evento.preventDefault();
+    salvarMembro();
+  });
+  elementosEquipes.curso.addEventListener('change', () => {
+    aoMudarCursoEquipes().catch((erro) => mostrarMensagemEquipes(traduzirErroEquipes(erro)));
+  });
+  elementosEquipes.materia.addEventListener('change', () => {
+    aoMudarMateriaEquipes().catch((erro) => mostrarMensagemEquipes(traduzirErroEquipes(erro)));
+  });
+  elementosEquipes.aluno.addEventListener('change', () => {
+    estadoEquipes.alunoId = elementosEquipes.aluno.value;
+    if (estadoEquipes.turmaCodigo) renderizarTurmaEquipes();
+  });
+  elementosEquipes.turma.addEventListener('change', () => {
+    estadoEquipes.turmaCodigo = elementosEquipes.turma.value;
+    estadoEquipes.alunoId = '';
+    limparFormularioEquipe();
+    limparFormularioMembro();
+    carregarTurmaEquipes().catch((erro) => mostrarMensagemEquipes(traduzirErroEquipes(erro)));
+  });
+  document.addEventListener('keydown', (evento) => {
+    const modalAberto = evento.key === 'Escape' && !elementosEquipes.fundo.hidden;
+    if (modalAberto && !fecharJanelasEquipes()) fecharModalEquipes();
+  });
+}
+
+/**
+ * Abre o modal de equipes da matéria (monta na primeira vez).
+ * @param {{repositorio: Object, prefixoPasta: string, papeis: string[]}} contexto - Dados.
+ * @returns {Promise<void>}
+ */
+async function abrirModalEquipes(contexto) {
+  Object.assign(estadoEquipes, contexto);
+  if (!elementosEquipes) {
+    elementosEquipes = montarModalEquipes(contexto.papeis);
+    ligarEventosEquipes();
+  }
+  elementosEquipes.fundo.hidden = false;
+  try {
+    await carregarInicialEquipes();
+  } catch (erro) {
+    mostrarMensagemEquipes(traduzirErroEquipes(erro));
+  }
+}

@@ -1,0 +1,148 @@
+/* Janela "Cursos Vinculados" do painel (assets/js/painel-professor-vinculos.js). */
+
+:root {
+    --vinculos-professor-fundo: #ffffff;
+    --vinculos-professor-texto: #1a202c;
+    --vinculos-professor-borda: #cbd5e0;
+    --vinculos-professor-suave: #4a5568;
+    --vinculos-professor-ligado: #2f855a;
+    --vinculos-professor-desligado: #a0aec0;
+    --vinculos-professor-erro: #c53030;
+    --vinculos-professor-raio: 12px;
+}
+
+.vinculos-professor {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.vinculos-professor__caixa {
+    position: relative;
+    width: min(640px, 94vw);
+    max-height: 90vh;
+    padding: 24px;
+    overflow-y: auto;
+    border-radius: var(--vinculos-professor-raio);
+    background: var(--vinculos-professor-fundo);
+    color: var(--vinculos-professor-texto);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+}
+
+.vinculos-professor__caixa h2 { margin: 0 0 14px; font-size: 20px; }
+.vinculos-professor__caixa h3 { margin: 16px 0 6px; font-size: 15px; }
+
+.vinculos-professor__sair {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    border: 0;
+    background: transparent;
+    color: var(--vinculos-professor-suave);
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.vinculos-professor__campo {
+    display: block;
+    margin-top: 10px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.vinculos-professor__campo input,
+.vinculos-professor__caixa select {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    padding: 8px 10px;
+    border: 1px solid var(--vinculos-professor-borda);
+    border-radius: 8px;
+    font: inherit;
+    font-weight: 400;
+}
+
+.vinculos-professor__lista {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 170px;
+    padding: 8px;
+    overflow-y: auto;
+    border: 1px solid var(--vinculos-professor-borda);
+    border-radius: 8px;
+}
+
+.vinculos-professor__vazio,
+.vinculos-professor__resumo,
+.vinculos-professor__atual,
+.vinculos-professor__nota {
+    margin: 6px 0 0;
+    color: var(--vinculos-professor-suave);
+    font-size: 13px;
+}
+
+.vinculos-professor__atual { font-weight: 600; }
+.vinculos-professor__nota { display: block; }
+
+/* Chave ON/OFF no lugar do quadradinho do checkbox. */
+.vinculos-professor__chave {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.vinculos-professor__chave input[type="checkbox"] {
+    appearance: none;
+    position: relative;
+    flex: none;
+    box-sizing: border-box;
+    width: 2.6rem;
+    height: 1.3rem;
+    margin: 0;
+    border: 1px solid var(--vinculos-professor-desligado);
+    border-radius: 999px;
+    background: #edf2f7;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.vinculos-professor__chave input[type="checkbox"]::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0.15rem;
+    width: 0.9rem;
+    height: 0.9rem;
+    border-radius: 50%;
+    background: var(--vinculos-professor-desligado);
+    transform: translateY(-50%);
+    transition: left 0.2s, background 0.2s;
+}
+
+.vinculos-professor__chave input[type="checkbox"]:checked {
+    border-color: var(--vinculos-professor-ligado);
+    background: rgba(47, 133, 90, 0.25);
+}
+
+.vinculos-professor__chave input[type="checkbox"]:checked::before {
+    left: calc(100% - 1.05rem);
+    background: var(--vinculos-professor-ligado);
+}
+
+.vinculos-professor__chave input[type="checkbox"]:focus-visible { outline: 2px solid #4fc3f7; outline-offset: 2px; }
+
+.vinculos-professor__erro { min-height: 1.2em; margin: 10px 0 0; color: var(--vinculos-professor-erro); font-size: 13px; }
+.vinculos-professor__resultado { margin: 10px 0 0; color: var(--vinculos-professor-ligado); font-size: 14px; font-weight: 700; }
+.vinculos-professor__caixa .painel-botao { margin-top: 12px; margin-right: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+    .vinculos-professor__chave input[type="checkbox"],
+    .vinculos-professor__chave input[type="checkbox"]::before { transition: none; }
+}

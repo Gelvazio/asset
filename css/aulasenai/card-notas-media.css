@@ -1,0 +1,375 @@
+/* Card "Notas e média" do índice de atividades da matéria (#371): ocupa a grade inteira. */
+.card-notas-media {
+    --notas-borda: #e2e8f0;
+    --notas-zebra: #f1f5f9;
+    --notas-ligado: #2f855a;
+    --notas-desligado: #c53030;
+    --notas-erro: #c53030;
+    grid-column: 1 / -1;
+    background: #f9fafb;
+    border-left: 5px solid var(--primary);
+    border-radius: 8px;
+    padding: 14px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.card-notas-media[hidden] { display: none; }
+.card-notas-media__combo[hidden] { display: none; }
+.card-notas-media__titulo { font-size: 18px; line-height: 1.3; color: var(--text); }
+.card-notas-media__selecao {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 14px;
+    padding: 12px 14px;
+    background: white;
+    border: 1px solid var(--notas-borda);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(45, 55, 72, 0.08);
+}
+.card-notas-media__combo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 260px;
+    min-width: 0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #4a5568;
+}
+.card-notas-media__combo select {
+    width: 100%;
+    min-height: 42px;
+    padding: 8px 38px 8px 12px;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--text);
+    background-color: #f7fafc;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23667eea' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    border: 2px solid #cbd5e0;
+    border-radius: 10px;
+    appearance: none;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+}
+.card-notas-media__combo select:hover {
+    border-color: var(--primary);
+    background-color: white;
+}
+.card-notas-media__combo select:focus-visible {
+    outline: none;
+    border-color: var(--primary);
+    background-color: white;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+}
+.card-notas-media__tabela {
+    width: 100%; border-collapse: collapse; font-size: 0.85rem; background: white;
+    table-layout: auto; border: 1px solid var(--notas-borda); border-radius: 8px;
+}
+.card-notas-media__tabela th,
+.card-notas-media__tabela td {
+    padding: 5px 8px; text-align: center; vertical-align: middle;
+    border-bottom: 1px solid var(--notas-borda);
+    white-space: nowrap; min-width: 3.2rem;
+}
+/* Aula e Atividade (1ª e 2ª colunas): texto à esquerda, com quebra de linha. */
+.card-notas-media__tabela th:nth-child(-n+2),
+.card-notas-media__tabela td:nth-child(-n+2) {
+    text-align: left; white-space: normal; overflow-wrap: anywhere; min-width: 8rem;
+}
+.card-notas-media__tabela th {
+    background: #edf2f7;
+    white-space: normal;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #4a5568;
+    border-bottom: 2px solid #cbd5e0;
+}
+.card-notas-media__tabela td a { text-decoration: none; }
+.card-notas-media__tabela td a:hover { text-decoration: underline; }
+.card-notas-media__linha:nth-child(even) { background: var(--notas-zebra); }
+.card-notas-media__linha:hover { background: #e6edf7; }
+.card-notas-media__linha--fora { opacity: 0.55; }
+.card-notas-media__nota { font-weight: 700; text-align: center; }
+/* Só em tela estreita a tabela volta a rolar na horizontal. */
+@media (max-width: 720px) {
+    .card-notas-media__tabela { display: block; overflow-x: auto; }
+}
+/* Tarefas OK / Tarefas Pendentes (só professor): "entregues/total" da turma */
+.card-notas-media__tarefas {
+    text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+/* Botão "👁 Ver" ao lado do número: abre o popup com a lista (card-notas-lista-alunos.js) */
+.card-notas-media__ver-botao {
+    margin-left: 4px; padding: 1px 6px; min-height: 22px; font-size: 0.72rem; white-space: nowrap;
+}
+.card-notas-media__ver-botao:disabled { opacity: 0.6; cursor: not-allowed; }
+.card-notas-media__interruptor {
+    --altura-controle-atividade: 24px;
+    position: relative; width: 52px; height: var(--altura-controle-atividade);
+    border: 0; border-radius: var(--altura-controle-atividade); cursor: pointer;
+    background: var(--notas-desligado);
+    color: white;
+    font: inherit;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0 6px 0 24px; text-align: right; transition: background 0.2s;
+}
+.card-notas-media__interruptor::before {
+    content: ''; position: absolute; left: 3px; top: 3px;
+    width: calc(var(--altura-controle-atividade) - 6px);
+    height: calc(var(--altura-controle-atividade) - 6px);
+    border-radius: 50%; background: white; transition: transform 0.2s;
+}
+.card-notas-media__interruptor--ligado {
+    background: var(--notas-ligado);
+    padding: 0 24px 0 6px;
+    text-align: left;
+}
+.card-notas-media__interruptor--ligado::before { transform: translateX(28px); }
+.card-notas-media__interruptor:disabled { opacity: 0.6; cursor: not-allowed; }
+.card-notas-media__interruptor:focus-visible { outline: 2px solid #1a56db; outline-offset: 2px; }
+/* Checkbox de seleção das linhas: chave ON/OFF pequena (regra do projeto), escopada ao card */
+.card-notas-media input[type="checkbox"] {
+    appearance: none; position: relative; flex: none; box-sizing: border-box;
+    width: 2.4rem; height: 1.2rem; margin: 0; vertical-align: middle;
+    background: rgba(0, 0, 0, 0.06); border: 1px solid #a0aec0; border-radius: 999px;
+    cursor: pointer; transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.card-notas-media input[type="checkbox"]::before {
+    content: ''; position: absolute; top: 50%; left: 0.15rem;
+    width: 0.85rem; height: 0.85rem; background: #718096; border-radius: 50%;
+    transform: translateY(-50%); transition: left 0.2s, background 0.2s;
+}
+.card-notas-media input[type="checkbox"]::after {
+    content: 'OFF'; position: absolute; top: 50%; right: 0.3rem; transform: translateY(-50%);
+    color: #4a5568; font-size: 0.45rem; font-weight: 700; letter-spacing: 0.04em; line-height: 1;
+}
+.card-notas-media input[type="checkbox"]:checked {
+    background: rgba(129, 230, 160, 0.35); border-color: #81e6a0;
+    box-shadow: 0 0 6px rgba(129, 230, 160, 0.55);
+}
+.card-notas-media input[type="checkbox"]:checked::before {
+    left: calc(100% - 1rem); background: var(--notas-ligado);
+}
+.card-notas-media input[type="checkbox"]:checked::after {
+    content: 'ON'; right: auto; left: 0.35rem; color: #22543d;
+}
+.card-notas-media input[type="checkbox"]:focus-visible { outline: 2px solid #1a56db; outline-offset: 2px; }
+.card-notas-media input[type="checkbox"]:disabled { cursor: not-allowed; opacity: 0.5; }
+.card-notas-media th:has(> input[type="checkbox"]),
+.card-notas-media td:has(> input[type="checkbox"]) { text-align: center; }
+@media (prefers-reduced-motion: reduce) {
+    .card-notas-media input[type="checkbox"],
+    .card-notas-media input[type="checkbox"]::before { transition: none; }
+}
+.card-notas-media__peso {
+    width: 3.8rem; font: inherit; font-size: 0.8rem; padding: 2px 6px; min-height: 26px;
+    border: 1px solid #cbd5e0; border-radius: 6px; text-align: right;
+}
+.card-notas-media__rodape {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.card-notas-media__media {
+    font-size: 30px; font-weight: 800; color: var(--primary); line-height: 1.1;
+}
+.card-notas-media__aviso {
+    margin: 0; padding: 10px 12px; border-radius: 8px; font-size: 14px; font-weight: 600;
+    background: #fffbea; border: 2px solid var(--gold);
+}
+.card-notas-media__aviso--erro {
+    background: #fff5f5;
+    border-color: var(--notas-erro);
+    color: var(--notas-erro);
+}
+@media (max-width: 600px) {
+    .card-notas-media { padding: 14px 12px; border-left-width: 4px; }
+    .card-notas-media__combo { flex-basis: 100%; }
+    .card-notas-media__media { font-size: 26px; }
+}
+
+.card-notas-media__filtro {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+/* Combo "Perguntas respondidas" da faixa de filtros: largura fixa, sem esticar a linha toda. */
+.card-notas-media__filtro .card-notas-media__combo {
+    flex: 0 0 220px;
+    width: 220px;
+}
+@media (max-width: 600px) {
+    .card-notas-media__filtro .card-notas-media__combo { flex-basis: 100%; width: 100%; }
+}
+.card-notas-media__filtro-rotulo {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #4a5568;
+}
+.card-notas-media__vazio {
+    padding: 14px;
+    text-align: center;
+    color: #718096;
+    font-style: italic;
+}
+.card-notas-media__chave[hidden] { display: none; }
+.card-notas-media__chave {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 6px;
+    padding-bottom: 8px;
+}
+.card-notas-media[hidden] { display: none; }
+.card-notas-media__cabecalho {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.card-notas-media__visibilidade {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+.card-notas-media__visibilidade[hidden] { display: none; }
+.card-notas-media__somente-pendentes {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    font-size: 13px;
+}
+/* Filtro "Somente Atividades Pendentes" ligado: cards de aula em verde ficam escondidos. */
+article.aula.aula--oculta-pendentes { display: none; }
+/* Corpo escondido desde a montagem (interruptor "Mostrar" OFF): evita piscar antes do banco. */
+.card-notas-media--corpo-oculto > :not(.card-notas-media__cabecalho) { display: none; }
+/* Coluna "Finalizar" (só professor): botão "Finalizar Atividade" no estilo do "Confirmar"; com o
+   gabarito já liberado na turma, "Finalizada" desabilitado (card-notas-finalizar-atividade.js). */
+.card-notas-media__finalizar { text-align: center; white-space: nowrap; }
+.card-notas-media__finalizar-botao {
+    min-height: 26px; padding: 2px 10px; font-size: 0.75rem; white-space: nowrap;
+}
+.card-notas-media__finalizar-botao:disabled { opacity: 0.6; cursor: not-allowed; }
+@media (max-width: 600px) {
+    .card-notas-media__finalizar-botao { font-size: 13px; padding-left: 10px; padding-right: 10px; }
+}
+
+/* Botões e tabela das notas finais (assets/js/card-notas-media-atividades.js). */
+.card-notas-media__media-atividades__botao {
+    margin: 8px 8px 0 0;
+}
+
+.card-notas-media__media-atividades {
+    flex: 0 0 100%;
+    width: 100%;
+    margin-top: 6px;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.card-notas-media__media-atividades th,
+.card-notas-media__media-atividades td {
+    padding: 8px 14px;
+    text-align: center;
+    border: 1px solid var(--cor-borda, #cbd5e0);
+}
+
+.card-notas-media__media-atividades th {
+    font-size: 12px;
+}
+
+.card-notas-media__media-atividades td {
+    font-weight: 700;
+}
+
+/* Combo de filtro (Todos / Acima / Abaixo da média) acima de cada coluna de nota. */
+.card-notas-media__media-atividades__filtro {
+    width: 100%;
+    min-width: 9rem;
+    min-height: 34px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cor-texto, #2d3748);
+    background: #fff;
+    border: 1px solid var(--cor-borda, #cbd5e0);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* Coluna Aluno da tabela de médias: nomes alinhados à esquerda. */
+.card-notas-media__media-atividades th:first-child,
+.card-notas-media__media-atividades td:first-child {
+    text-align: left;
+}
+
+/* Combo "Tipo da atividade" da coluna Tipo (card-notas-tipo-atividade.js). */
+.card-notas-media__tipo {
+    --tipo-cor: #a0aec0;
+    width: 100%;
+    min-width: 11rem;
+    max-width: 14rem;
+    min-height: 36px;
+    padding: 6px 30px 6px 12px;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    background-color: #f7fafc;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23667eea' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    border: 2px solid #cbd5e0;
+    border-left: 5px solid var(--tipo-cor);
+    border-radius: 10px;
+    appearance: none;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+}
+
+.card-notas-media__tipo[data-tipo="1"] { --tipo-cor: #3182ce; }
+.card-notas-media__tipo[data-tipo="2"] { --tipo-cor: #805ad5; }
+.card-notas-media__tipo[data-tipo="3"] { --tipo-cor: #dd6b20; }
+.card-notas-media__tipo[data-tipo="4"] { --tipo-cor: #2f855a; background-color: #f0fff4; }
+
+.card-notas-media__tipo:hover:not(:disabled) {
+    background-color: #ebf4ff;
+    border-color: #667eea;
+    border-left-color: var(--tipo-cor);
+}
+
+.card-notas-media__tipo:focus-visible {
+    outline: none;
+    border-color: #667eea;
+    border-left-color: var(--tipo-cor);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+}
+
+.card-notas-media__tipo:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card-notas-media__tipo { transition: none; }
+}

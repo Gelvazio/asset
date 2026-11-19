@@ -1,0 +1,6 @@
+/* Aviso amarelo claro de atividade entregue por falta (assets/js/aviso-falta-entrega.js) */
+.aviso-falta-entrega {
+  margin: 0 0 16px; padding: 12px 16px; border: 1px solid #e0b400; border-left-width: 6px;
+  border-radius: 8px; background: #fff6c8; color: #5c4600; font-size: 15px; line-height: 1.5;
+}
+.aviso-falta-entrega p { margin: 6px 0 0; }

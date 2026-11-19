@@ -1,0 +1,53 @@
+/* Lista de aulas da matéria no celular (até 600 px): linhas de atividade legíveis.
+   Carregado por assets/js/atividades-crud-modal.js depois dos demais estilos. O :not(#...)
+   só sobe a especificidade para vencer os seletores com :has() de indice-atividades.css,
+   atividades-crud-modal.css e celular.css. Computador e tablet não mudam. */
+@media (max-width: 600px) {
+    .acoes {
+        --celular-aulas-toque: 44px;
+        --celular-aulas-espaco: 10px;
+        gap: var(--celular-aulas-espaco);
+        align-items: center;
+    }
+
+    /* Nome da atividade: quebra de linha em vez de reticências, ocupando a linha toda. */
+    .acoes > a.btn.principal:not(#celular-aulas) {
+        flex: 1 1 100%;
+        min-width: 0;
+        justify-content: flex-start;
+        text-align: left;
+        white-space: normal;
+        overflow: visible;
+        font-size: 15px;
+        line-height: 1.3;
+    }
+    .acoes > a.btn.principal .nome-atividade-card {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        overflow-wrap: anywhere;
+    }
+
+    /* Controles da atividade (chave, lápis e traço) na linha de baixo, à direita,
+       com área de toque de 44 px e espaço entre eles. */
+    .acoes > .interruptor-atividade {
+        margin: 0 0 0 auto;
+        min-height: var(--celular-aulas-toque);
+    }
+    .acoes > .btn.crud-editar-atividade:not(#celular-aulas),
+    .acoes > .btn.crud-desvincular-atividade:not(#celular-aulas) {
+        flex: 0 0 var(--celular-aulas-toque);
+        width: var(--celular-aulas-toque);
+        height: var(--celular-aulas-toque);
+        min-height: var(--celular-aulas-toque);
+        padding: 0;
+    }
+
+    /* Botões do card (Progresso, Aula liberada, Editar aula, Excluir): largura toda. */
+    .acoes > .btn:not(.principal, .crud-editar-atividade, .crud-desvincular-atividade),
+    .acoes > .interruptor-aula {
+        flex: 1 1 100%;
+        width: 100%;
+        min-height: var(--celular-aulas-toque);
+    }
+}
